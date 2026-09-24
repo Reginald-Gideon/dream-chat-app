@@ -4,7 +4,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ChatPage from './pages/ChatPage';
 import UserListPage from './pages/NewChat';
-import { BrowserRouter as Router, Route, Routes, BrowserRouter } from 'react-router-dom';
+import { Route, Routes, BrowserRouter } from 'react-router-dom';
 import ProtectedRoute from './pages/ProtectedRoute';
 import Layout from './pages/Layout';
 import InboxPage from './pages/InboxPage';
