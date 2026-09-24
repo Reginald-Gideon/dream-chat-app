@@ -1,0 +1,325 @@
+.chat-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at 20% 20%, #16213e, #0d1321 65%);
+  font-family: "Inter", sans-serif;
+  color: #f4f6fb;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #232c47;
+  font-size: 14px;
+  color: #b7bfd6;
+}
+
+.logout-button {
+  background: transparent;
+  border: 1px solid #2a3455;
+  color: #b7bfd6;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  border-color: #6d8cff;
+  color: #f4f6fb;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.message {
+  background: #12182b;
+  border: 1px solid #232c47;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.message-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6d8cff;
+}
+
+.message-content {
+  font-size: 15px;
+  color: #f4f6fb;
+  word-break: break-word;
+}
+
+.chat-error {
+  text-align: center;
+  color: #ff8a8a;
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.message-form {
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid #232c47;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.message-input {
+  flex: 1;
+  background: #0d1321;
+  border: 1px solid #2a3455;
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 15px;
+  color: #f4f6fb;
+  outline: none;
+}
+
+.message-input:focus {
+  border-color: #6d8cff;
+  box-shadow: 0 0 0 3px rgba(109, 140, 255, 0.15);
+}
+
+.send-button {
+  background: #6d8cff;
+  color: #0d1321;
+  font-weight: 600;
+  font-size: 15px;
+  border: none;
+  border-radius: 8px;
+  padding: 0 20px;
+  cursor: pointer;
+}
+
+.send-button:hover {
+  background: #83a0ff;
+}
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 20% 20%, #16213e, #0d1321 65%);
+  font-family: "Inter", sans-serif;
+  padding: 24px;
+  box-sizing: border-box;
+}
+ 
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: #12182b;
+  border: 1px solid #232c47;
+  border-radius: 14px;
+  padding: 36px 32px;
+  box-sizing: border-box;
+}
+ 
+.login-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: #f4f6fb;
+  margin: 0 0 6px;
+}
+ 
+.login-subtitle {
+  font-size: 14px;
+  color: #8891ab;
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+ 
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+ 
+.login-label {
+  font-size: 13px;
+  color: #b7bfd6;
+  margin-bottom: 6px;
+  margin-top: 16px;
+}
+ 
+.login-label:first-of-type {
+  margin-top: 0;
+}
+ 
+.login-input {
+  background: #0d1321;
+  border: 1px solid #2a3455;
+  border-radius: 8px;
+  padding: 11px 12px;
+  font-size: 15px;
+  color: #f4f6fb;
+  font-family: "Inter", sans-serif;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+ 
+.login-input::placeholder {
+  color: #4d5678;
+}
+ 
+.login-input:focus {
+  border-color: #6d8cff;
+  box-shadow: 0 0 0 3px rgba(109, 140, 255, 0.15);
+}
+ 
+.login-error {
+  color: #ff8a8a;
+  font-size: 13px;
+  margin: 14px 0 0;
+}
+ 
+.login-button {
+  margin-top: 24px;
+  background: #6d8cff;
+  color: #0d1321;
+  font-weight: 600;
+  font-size: 15px;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+ 
+.login-button:hover:not(:disabled) {
+  background: #83a0ff;
+}
+ 
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+ 
+.login-button:focus-visible,
+.login-input:focus-visible {
+  outline: 2px solid #6d8cff;
+  outline-offset: 2px;
+}
+ 
+.login-footer {
+  text-align: center;
+  font-size: 13px;
+  color: #8891ab;
+  margin: 24px 0 0;
+}
+ 
+.login-footer a {
+  color: #6d8cff;
+  text-decoration: none;
+}
+ 
+.login-footer a:hover {
+  text-decoration: underline;
+}
+ 
+
+.message {
+  max-width: 75%;
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.message-mine {
+  align-self: flex-end;
+  background: #6d8cff;
+  color: #0d1321;
+  border-bottom-right-radius: 4px;
+}
+
+.message-mine .message-author {
+  display: none; /* no need to label your own messages */
+}
+
+.message-mine .message-content {
+  color: #0d1321;
+}
+
+.message-theirs {
+  align-self: flex-start;
+  background: #12182b;
+  border: 1px solid #232c47;
+  border-bottom-left-radius: 4px;
+}
+.app-layout {
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+background: radial-gradient(circle at 20% 20%, #16213e, #0d1321 65%);
+font-family: "Inter", sans-serif;
+color: #f4f6fb;
+}
+.app-nav {
+display: flex;
+align-items: center;
+gap: 20px;
+padding: 14px 24px;
+border-bottom: 1px solid #232c47;
+}
+.app-nav-user {
+font-weight: 600;
+color: #6d8cff;
+margin-right: auto;
+}
+.nav-link {
+color: #b7bfd6;text-decoration: none;
+font-size: 14px;
+padding: 6px 10px;
+border-radius: 6px;
+}
+.nav-link:hover {
+color: #f4f6fb;
+}
+.nav-link.active {
+background: #12182b;
+color: #6d8cff;
+}
+.nav-logout {
+background: transparent;
+border: 1px solid #2a3455;
+color: #b7bfd6;
+border-radius: 6px;
+padding: 6px 12px;
+font-size: 13px;
+cursor: pointer;
+}
+.app-content {
+flex: 1;
+display: flex;flex-direction: column;
+}
+.message-timestamp {
+  font-size: 11px;
+  color: #8891ab;
+  align-self: flex-end;
+}
+.message-mine .message-timestamp {
+  color: #4d5678;
+}
