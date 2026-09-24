@@ -11,7 +11,7 @@ export default function UserListPage() {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const response = await fetch("http://localhost:3001/api/users", {
+        const response = await fetch("https://dream-chat-app-1.onrender.com/api/users", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) throw new Error("Failed to load users.");
@@ -26,7 +26,7 @@ export default function UserListPage() {
 
   async function startConversation(otherUserId) {
     try {
-      const response = await fetch("http://localhost:3001/api/conversations", {
+      const response = await fetch("https://dream-chat-app-1.onrender.com/api/conversations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

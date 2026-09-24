@@ -19,7 +19,7 @@ export default function ChatPage() {
     async function fetchMessages() {
       try {
         const response = await fetch(
-          `http://localhost:3001/api/conversations/${conversationId}/messages`,
+          `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/messages`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!response.ok) throw new Error("Failed to load messages.");
@@ -34,7 +34,7 @@ export default function ChatPage() {
 
   // Connect the socket and join this conversation's room
   useEffect(() => {
-    const socket = io("http://localhost:3001");
+    const socket = io("https://dream-chat-app-1.onrender.com");
 
     socket.emit("joinConversation", conversationId);
 
@@ -58,7 +58,7 @@ export default function ChatPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:3001/api/conversations/${conversationId}/messages`,
+        `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/messages`,
         {
           method: "POST",
           headers: {

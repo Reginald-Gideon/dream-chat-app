@@ -10,7 +10,7 @@ export default function InboxPage(){
     useEffect(()=>{
         async function fetchConversation(){
             try{
-                const response = await fetch("http://localhost:3001/api/conversations",{
+                const response = await fetch("https://dream-chat-app-1.onrender.com/api/conversations",{
                     headers:{ Authorization: `Bearer ${token}`}
                 })
                 if (!response.ok) throw new Error('Failed to load conversation.')

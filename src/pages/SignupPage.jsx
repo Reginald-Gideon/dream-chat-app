@@ -22,7 +22,7 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3001/api/auth/signup", {
+      const response = await fetch("https://dream-chat-app-1.onrender.com/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password }),

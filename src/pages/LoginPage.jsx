@@ -21,7 +21,7 @@ async function handleSubmit(e) {
   try {
       // This endpoint doesn't exist yet — we'll build it in Express + Postgres
       // in a later step. For now this shows the shape the real call will take.
-    const response = await fetch("http://localhost:3001/api/auth/login", {
+    const response = await fetch("https://dream-chat-app-1.onrender.com/api/auth/login", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ email, password }),
