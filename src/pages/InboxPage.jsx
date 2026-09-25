@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import "../css/Inboxpage.css";
 
 function getInitials(name) {
@@ -10,9 +11,11 @@ export default function InboxPage() {
   const [conversations, setConversations] = useState([]);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [onlineUserIds, setOnlineUserIds] = useState([]);
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
+  // fetch the list of conversations
   useEffect(() => {
     async function fetchConversations() {
       try {
@@ -27,6 +30,27 @@ export default function InboxPage() {
       }
     }
     fetchConversations();
+  }, [token]);
+
+  // track who's online via socket.io
+  useEffect(() => {
+    const socket = io("https://dream-chat-app-1.onrender.com", {
+      auth: { token },
+    });
+
+    socket.on("onlineUsers", (userIds) => {
+      setOnlineUserIds(userIds);
+    });
+
+    socket.on("userOnline", (userId) => {
+      setOnlineUserIds((prev) => (prev.includes(userId) ? prev : [...prev, userId]));
+    });
+
+    socket.on("userOffline", (userId) => {
+      setOnlineUserIds((prev) => prev.filter((id) => id !== userId));
+    });
+
+    return () => socket.disconnect();
   }, [token]);
 
   const filtered = conversations.filter((c) =>
@@ -59,7 +83,10 @@ export default function InboxPage() {
         {filtered.map((c) => (
           <li key={c.conversation_id}>
             <button className="inbox-row" onClick={() => navigate(`/chat/${c.conversation_id}`)}>
-              <div className="inbox-avatar">{getInitials(c.other_username)}</div>
+              <div className="inbox-avatar">
+                {getInitials(c.other_username)}
+                {onlineUserIds.includes(c.other_user_id) && <span className="online-dot" />}
+              </div>
               <div className="inbox-row-content">
                 <div className="inbox-row-name">{c.other_username}</div>
                 <div className="inbox-row-preview">{c.last_message || "No messages yet"}</div>

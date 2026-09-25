@@ -119,3 +119,17 @@
   color: #9AA6BD;
   white-space: nowrap;
 }
+.inbox-avatar {
+  position: relative;
+}
+
+.online-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 11px;
+  height: 11px;
+  background: #34D399;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+}

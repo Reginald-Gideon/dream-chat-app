@@ -44,7 +44,7 @@ export default function ChatPage() {
   }, [token, conversationId]);
 
   useEffect(() => {
-    const socket = io("https://dream-chat-app-1.onrender.com");
+    const socket = io("https://dream-chat-app-1.onrender.com",{ auth: { token } });
     socket.emit("joinConversation", conversationId);
 
     socket.on("newMessage", (message) => {
@@ -57,7 +57,7 @@ export default function ChatPage() {
     });
 
     return () => socket.disconnect();
-  }, [conversationId]);
+  }, [token, conversationId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
