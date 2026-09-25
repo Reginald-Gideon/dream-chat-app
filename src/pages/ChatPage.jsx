@@ -17,7 +17,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState("");
-  const navigate = useNavigate();
+
   const bottomRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
