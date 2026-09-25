@@ -16,7 +16,7 @@ function orderUserIds(idA, idB) {
   return idA < idB ? [idA, idB] : [idB, idA];
 }
 
-// --- AUTH ---
+// auth routes
 
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
@@ -70,7 +70,7 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-// --- USERS ---
+// users
 
 app.get('/api/users', authMiddleware, async (req, res) => {
   try {
@@ -85,7 +85,7 @@ app.get('/api/users', authMiddleware, async (req, res) => {
   }
 });
 
-// --- CONVERSATIONS ---
+// conversations
 
 app.post('/api/conversations', authMiddleware, async (req, res) => {
   const { otherUserId } = req.body;
@@ -147,7 +147,7 @@ app.get('/api/conversations', authMiddleware, async (req, res) => {
   }
 });
 
-// --- MESSAGES (scoped to a conversation) ---
+// messages
 
 app.post('/api/conversations/:conversationId/messages', authMiddleware, async (req, res) => {
   const { conversationId } = req.params;
@@ -198,7 +198,7 @@ app.get('/api/conversations/:conversationId/messages', authMiddleware, async (re
   }
 });
 
-// --- SOCKET.IO SETUP ---
+// socket.io setup
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -206,16 +206,52 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+  const userId = socket.userId;
+
+  // mark this user online (increment their connection count)
+  const count = onlineUsers.get(userId) || 0;
+  onlineUsers.set(userId, count + 1);
+
+  if (count === 0) {
+    io.emit('userOnline', userId); // only announce if they weren't already online
+  }
+
+  // send the full current online list to this newly-connected socket
+  socket.emit('onlineUsers', Array.from(onlineUsers.keys()));
 
   socket.on('joinConversation', (conversationId) => {
     socket.join(`conversation:${conversationId}`);
   });
 
   socket.on('disconnect', () => {
-    console.log('A user disconnected:', socket.id);
+    const current = onlineUsers.get(userId) || 1;
+    if (current <= 1) {
+      onlineUsers.delete(userId);
+      io.emit('userOffline', userId);
+    } else {
+      onlineUsers.set(userId, current - 1);
+    }
   });
 });
+// Checking user status if online or not
+const onlineUsers = new Map();
+
+io.use((socket,next)=>{
+  const token = socket.handshake.auth.token;
+  if(!token){
+    return next(new Error('No token provided'));
+  }
+  try{
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.userId;
+    
+    next();
+  } 
+  catch(err){
+    next(new Error('Invalid token'));
+  }
+})
+
 
 server.listen(3001, () => {
   console.log('Server is running on port 3001');
