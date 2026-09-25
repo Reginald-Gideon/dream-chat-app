@@ -39,8 +39,9 @@ export default function InboxPage() {
     });
 
     socket.on("onlineUsers", (userIds) => {
-      setOnlineUserIds(userIds);
-    });
+  console.log("Received online users:", userIds);
+  setOnlineUserIds(userIds);
+});
 
     socket.on("userOnline", (userId) => {
       setOnlineUserIds((prev) => (prev.includes(userId) ? prev : [...prev, userId]));
@@ -50,6 +51,12 @@ export default function InboxPage() {
       setOnlineUserIds((prev) => prev.filter((id) => id !== userId));
     });
 
+    socket.on("connect", () => {
+  console.log("Socket connected!", socket.id);
+});
+socket.on("connect_error", (err) => {
+  console.log("Socket connection error:", err.message);
+});
     return () => socket.disconnect();
   }, [token]);
 

@@ -206,6 +206,7 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
+  console.log(`Socket connected: ${socket.id}`);
   const userId = socket.userId;
 
   // mark this user online (increment their connection count)
