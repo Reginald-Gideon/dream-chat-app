@@ -1,20 +1,31 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
+import "../css/Chatpage.css";
 
+function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function getInitials(name) {
+  return name ? name.slice(0, 2).toUpperCase() : "?";
+}
 
 export default function ChatPage() {
-  const { conversationId } = useParams(); // reads the :conversationId from the URL
+  const { conversationId } = useParams();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const bottomRef = useRef(null); // reference to the bottom of the message list
+  const bottomRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
 
-  // Fetch existing messages for this specific conversation
+  // figure out who the other person is, once we have messages
+  const otherPerson = messages.find((m) => m.username !== user?.username)?.username;
+
   useEffect(() => {
     async function fetchMessages() {
       try {
@@ -30,18 +41,14 @@ export default function ChatPage() {
       }
     }
     fetchMessages();
-  }, [token, conversationId]); // re-fetch if the conversation changes
+  }, [token, conversationId]);
 
-  // Connect the socket and join this conversation's room
   useEffect(() => {
     const socket = io("https://dream-chat-app-1.onrender.com");
-
     socket.emit("joinConversation", conversationId);
 
     socket.on("newMessage", (message) => {
-      // only add it if it belongs to this conversation
       if (message.conversationId !== Number(conversationId)) return;
-
       setMessages((prev) => {
         const alreadyExists = prev.some((m) => m.id === message.id);
         if (alreadyExists) return prev;
@@ -50,7 +57,11 @@ export default function ChatPage() {
     });
 
     return () => socket.disconnect();
-  }, [conversationId]); // reconnect/rejoin if the conversation changes
+  }, [conversationId]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   async function handleSend(e) {
     e.preventDefault();
@@ -68,52 +79,32 @@ export default function ChatPage() {
           body: JSON.stringify({ content: newMessage }),
         }
       );
-
       if (!response.ok) throw new Error("Failed to send message.");
       setNewMessage("");
     } catch (err) {
       setError(err.message);
     }
   }
-  useEffect(() => {
-    // Scroll to the bottom whenever messages change
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
-
-  function handleLogout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/");
-  }
-  function formatTimestamp(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: "numeric", minute: '2-digit' });
-  }
 
   return (
     <div className="chat-page">
-      <header className="chat-header">
-        <span>Logged in as {user?.username}</span>
-        <button onClick={() => navigate("/inbox")} className="logout-button">
-          Back to messages
-        </button>
-        <button onClick={handleLogout} className="logout-button">Log out</button>
-      </header>
+      <div className="chat-header">
+        <div className="chat-header-avatar">{getInitials(otherPerson)}</div>
+        <div className="chat-header-name">{otherPerson || "Chat"}</div>
+      </div>
 
       <div className="message-list">
-     {messages.map((msg) => {
-  const isMine = msg.username === user.username;
-  return (
-    <div key={msg.id} className={`message ${isMine ? "message-mine" : "message-theirs"}`}>
-      <span className="message-author">{msg.username}</span>
-      <span className="message-content">{msg.content}</span>
-      <span className="message-timestamp">{formatTimestamp(msg.created_at)}</span>
-    </div>
-  );
-})}
-<div ref={bottomRef} /> {/* This empty div is used to scroll to the bottom */}
+        {messages.map((msg) => {
+          const isMine = msg.username === user.username;
+          return (
+            <div key={msg.id} className={`message ${isMine ? "message-mine" : "message-theirs"}`}>
+              <span className="message-author">{msg.username}</span>
+              <span className="message-content">{msg.content}</span>
+              <span className="message-time">{formatTime(msg.created_at)}</span>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
       </div>
 
       {error && <p className="chat-error">{error}</p>}

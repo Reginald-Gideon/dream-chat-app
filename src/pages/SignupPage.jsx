@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
- // reuse the same styles
+import "../css/LoginPage.css";
 
 export default function SignupPage() {
   const [username, setUsername] = useState("");
@@ -8,7 +7,6 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -36,7 +34,7 @@ export default function SignupPage() {
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-     navigate("/inbox");
+      window.location.href = "/inbox";
     } catch (err) {
       setError(err.message);
     } finally {
@@ -47,6 +45,11 @@ export default function SignupPage() {
   return (
     <div className="login-page">
       <div className="login-card">
+        <div className="login-brand">
+          <span className="login-brand-icon">💬</span>
+          <span className="login-brand-name">Morphues</span>
+        </div>
+
         <h1 className="login-title">Create your account</h1>
         <p className="login-subtitle">Join the conversation.</p>
 
@@ -58,7 +61,7 @@ export default function SignupPage() {
             className="login-input"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="yourname"
+            placeholder="Username"
           />
 
           <label className="login-label" htmlFor="email">Email</label>
@@ -91,7 +94,7 @@ export default function SignupPage() {
         </form>
 
         <p className="login-footer">
-          Already have an account? <a href="/login">Log in</a>
+          Already have an account? <a href="/">Log in</a>
         </p>
       </div>
     </div>
