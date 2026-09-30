@@ -151,3 +151,6 @@
 .send-button:hover {
   box-shadow: 0 10px 22px -4px rgba(73, 170, 255, 0.65);
 }
+.read-receipt {
+  font-weight: 600;
+}

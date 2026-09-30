@@ -1,0 +1,115 @@
+.newchat-page {
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.newchat-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.newchat-subtitle {
+  font-size: 14px;
+  color: var(--gray-neutral);
+  margin: 0 0 20px;
+}
+
+.newchat-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 10px 16px;
+  margin-bottom: 18px;
+}
+
+.newchat-search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--ink);
+  font-family: "Inter", sans-serif;
+  flex: 1;
+}
+
+.newchat-search input::placeholder {
+  color: #9AA6BD;
+}
+
+.newchat-error {
+  color: #E0526B;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.newchat-empty {
+  color: var(--gray-neutral);
+  font-size: 14px;
+  text-align: center;
+  padding: 40px 0;
+}
+
+.newchat-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.newchat-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.newchat-row:hover {
+  border-color: var(--blue-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -10px rgba(73, 170, 255, 0.4);
+}
+
+.newchat-avatar {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 50%;
+  background: var(--blue-light);
+  color: var(--blue-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.newchat-row-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.newchat-row-arrow {
+  color: var(--blue-primary);
+  font-size: 16px;
+}

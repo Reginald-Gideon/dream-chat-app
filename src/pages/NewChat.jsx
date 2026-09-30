@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import "../css/NewChat.css";
 
+function getInitials(name) {
+  return name ? name.slice(0, 2).toUpperCase() : "?";
+}
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
@@ -21,6 +26,7 @@ export default function UserListPage() {
         setError(err.message);
       }
     }
+    
     fetchUsers();
   }, [token]);
 
@@ -42,25 +48,40 @@ export default function UserListPage() {
     }
   }
 
+  const filtered = users.filter((u) =>
+    u.username.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div style={{ padding: 40, color: "#fff", background: "#0d1321", minHeight: "100vh" }}>
-      <h1>Start a conversation</h1>
-      {error && <p style={{ color: "#ff8a8a" }}>{error}</p>}
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {users.map((u) => (
-          <li key={u.id} style={{ marginBottom: 10 }}>
-            <button
-              onClick={() => startConversation(u.id)}
-              style={{
-                background: "#12182b",
-                border: "1px solid #232c47",
-                color: "#f4f6fb",
-                padding: "10px 16px",
-                borderRadius: 8,
-                cursor: "pointer",
-              }}
-            >
-              {u.username}
+    <div className="newchat-page">
+      <h1 className="newchat-title">New chat</h1>
+      <p className="newchat-subtitle">Pick someone to start a conversation with.</p>
+
+      <div className="newchat-search">
+        <span>🔍</span>
+        <input
+          type="text"
+          placeholder="Search people"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {error && <p className="newchat-error">{error}</p>}
+
+      {filtered.length === 0 && !error && (
+        <p className="newchat-empty">
+          {search ? "No matching users." : "No other users yet."}
+        </p>
+      )}
+
+      <ul className="newchat-list">
+        {filtered.map((u) => (
+          <li key={u.id}>
+            <button className="newchat-row" onClick={() => startConversation(u.id)}>
+              <div className="newchat-avatar">{getInitials(u.username)}</div>
+              <div className="newchat-row-name">{u.username}</div>
+              <span className="newchat-row-arrow">→</span>
             </button>
           </li>
         ))}

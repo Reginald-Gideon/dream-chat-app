@@ -16,7 +16,7 @@ function orderUserIds(idA, idB) {
   return idA < idB ? [idA, idB] : [idB, idA];
 }
 
-// auth routes
+// --- AUTH ---
 
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
@@ -70,7 +70,7 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-// users
+// --- USERS ---
 
 app.get('/api/users', authMiddleware, async (req, res) => {
   try {
@@ -85,7 +85,7 @@ app.get('/api/users', authMiddleware, async (req, res) => {
   }
 });
 
-// conversations
+// --- CONVERSATIONS ---
 
 app.post('/api/conversations', authMiddleware, async (req, res) => {
   const { otherUserId } = req.body;
@@ -147,7 +147,7 @@ app.get('/api/conversations', authMiddleware, async (req, res) => {
   }
 });
 
-// messages
+// --- MESSAGES (scoped to a conversation) ---
 
 app.post('/api/conversations/:conversationId/messages', authMiddleware, async (req, res) => {
   const { conversationId } = req.params;
@@ -168,6 +168,8 @@ app.post('/api/conversations/:conversationId/messages', authMiddleware, async (r
     const fullMessage = {
       ...result.rows[0],
       username: userResult.rows[0].username,
+      user_id: req.userId,
+      read_at: null,
       conversationId: Number(conversationId),
     };
 
@@ -184,7 +186,7 @@ app.get('/api/conversations/:conversationId/messages', authMiddleware, async (re
   const { conversationId } = req.params;
   try {
     const result = await pool.query(
-      `SELECT messages.id, messages.content, messages.created_at, users.username
+      `SELECT messages.id, messages.content, messages.created_at, messages.read_at, messages.user_id, users.username
        FROM messages
        JOIN users ON messages.user_id = users.id
        WHERE messages.conversation_id = $1
@@ -198,26 +200,66 @@ app.get('/api/conversations/:conversationId/messages', authMiddleware, async (re
   }
 });
 
-// socket.io setup
+// --- READ RECEIPTS ---
+
+app.patch('/api/conversations/:conversationId/read', authMiddleware, async (req, res) => {
+  const { conversationId } = req.params;
+  try {
+    await pool.query(
+      `UPDATE messages
+       SET read_at = NOW()
+       WHERE conversation_id = $1
+         AND user_id != $2
+         AND read_at IS NULL`,
+      [conversationId, req.userId]
+    );
+
+    io.to(`conversation:${conversationId}`).emit('messagesRead', {
+      conversationId: Number(conversationId),
+      readerId: req.userId,
+    });
+
+    res.status(200).json({ message: 'Marked as read.' });
+  } catch (err) {
+    console.error('Mark read error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// --- SOCKET.IO SETUP ---
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' },
 });
 
-io.on('connection', (socket) => {
-  console.log(`Socket connected: ${socket.id}`);
-  const userId = socket.userId;
+const onlineUsers = new Map();
 
-  // mark this user online (increment their connection count)
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('No token provided'));
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.userId;
+    next();
+  } catch (err) {
+    next(new Error('Invalid token'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const userId = socket.userId;
+  console.log('New connection, userId:', userId);
+
   const count = onlineUsers.get(userId) || 0;
   onlineUsers.set(userId, count + 1);
 
   if (count === 0) {
-    io.emit('userOnline', userId); // only announce if they weren't already online
+    io.emit('userOnline', userId);
   }
 
-  // send the full current online list to this newly-connected socket
   socket.emit('onlineUsers', Array.from(onlineUsers.keys()));
 
   socket.on('joinConversation', (conversationId) => {
@@ -234,25 +276,6 @@ io.on('connection', (socket) => {
     }
   });
 });
-// Checking user status if online or not
-const onlineUsers = new Map();
-
-io.use((socket,next)=>{
-  const token = socket.handshake.auth.token;
-  if(!token){
-    return next(new Error('No token provided'));
-  }
-  try{
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.userId = decoded.userId;
-    
-    next();
-  } 
-  catch(err){
-    next(new Error('Invalid token'));
-  }
-})
-
 
 server.listen(3001, () => {
   console.log('Server is running on port 3001');

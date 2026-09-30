@@ -26,6 +26,7 @@ export default function ChatPage() {
   // figure out who the other person is, once we have messages
   const otherPerson = messages.find((m) => m.username !== user?.username)?.username;
 
+  // fetch existing messages
   useEffect(() => {
     async function fetchMessages() {
       try {
@@ -43,8 +44,9 @@ export default function ChatPage() {
     fetchMessages();
   }, [token, conversationId]);
 
+  // socket connection: live new messages + live read receipts
   useEffect(() => {
-    const socket = io("https://dream-chat-app-1.onrender.com",{ auth: { token } });
+    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
     socket.emit("joinConversation", conversationId);
 
     socket.on("newMessage", (message) => {
@@ -56,12 +58,47 @@ export default function ChatPage() {
       });
     });
 
+    socket.on("messagesRead", ({ conversationId: readConvId, readerId }) => {
+      if (readConvId !== Number(conversationId)) return;
+      if (readerId === user.id) return; // ignore my own read events
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.user_id === user.id && !m.read_at
+            ? { ...m, read_at: new Date().toISOString() }
+            : m
+        )
+      );
+    });
+
     return () => socket.disconnect();
   }, [token, conversationId]);
 
+  // auto-scroll to newest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // mark this conversation's messages as read when it's opened
+  useEffect(() => {
+    async function markAsRead() {
+      try {
+        await fetch(
+          `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/read`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+      } catch (err) {
+        console.error("Failed to mark as read:", err);
+      }
+    }
+    markAsRead();
+  }, [token, conversationId]);
 
   async function handleSend(e) {
     e.preventDefault();
@@ -95,12 +132,17 @@ export default function ChatPage() {
 
       <div className="message-list">
         {messages.map((msg) => {
-          const isMine = msg.username === user.username;
+          const isMine = msg.user_id === user.id;
           return (
             <div key={msg.id} className={`message ${isMine ? "message-mine" : "message-theirs"}`}>
               <span className="message-author">{msg.username}</span>
               <span className="message-content">{msg.content}</span>
-              <span className="message-time">{formatTime(msg.created_at)}</span>
+              <span className="message-time">
+                {formatTime(msg.created_at)}
+                {isMine && (
+                  <span className="read-receipt">{msg.read_at ? " ✓✓" : " ✓"}</span>
+                )}
+              </span>
             </div>
           );
         })}
