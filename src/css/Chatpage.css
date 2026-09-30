@@ -151,6 +151,16 @@
 .send-button:hover {
   box-shadow: 0 10px 22px -4px rgba(73, 170, 255, 0.65);
 }
+
 .read-receipt {
-  font-weight: 600;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+.read-receipt.sent {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.read-receipt.read {
+  color: #7CD4FF;
 }

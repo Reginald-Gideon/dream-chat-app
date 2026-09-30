@@ -140,7 +140,9 @@ export default function ChatPage() {
               <span className="message-time">
                 {formatTime(msg.created_at)}
                 {isMine && (
-                  <span className="read-receipt">{msg.read_at ? " ✓✓" : " ✓"}</span>
+                  <span className={`read-receipt ${msg.read_at ? "read" : "sent"}`}>
+                    {msg.read_at ? " ✓✓" : " ✓"}
+                  </span>
                 )}
               </span>
             </div>
