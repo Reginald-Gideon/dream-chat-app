@@ -69,6 +69,7 @@ app.post('/api/auth/signup', async (req, res) => {
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+// --Backend 
 
 // --- USERS ---
 
@@ -186,11 +187,11 @@ app.get('/api/conversations/:conversationId/messages', authMiddleware, async (re
   const { conversationId } = req.params;
   try {
     const result = await pool.query(
-      `SELECT messages.id, messages.content, messages.created_at, messages.read_at, messages.user_id, users.username
-       FROM messages
-       JOIN users ON messages.user_id = users.id
-       WHERE messages.conversation_id = $1
-       ORDER BY messages.created_at ASC`,
+     `SELECT messages.id, messages.content, messages.created_at, messages.read_at, messages.edited_at, messages.user_id, users.username
+ FROM messages
+ JOIN users ON messages.user_id = users.id
+ WHERE messages.conversation_id = $1
+ ORDER BY messages.created_at ASC`,
       [conversationId]
     );
     res.json(result.rows);
@@ -199,7 +200,65 @@ app.get('/api/conversations/:conversationId/messages', authMiddleware, async (re
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+// Backend
+// Edit a message — only the sender can edit their own message
+app.patch('/api/messages/:messageId', authMiddleware, async (req, res) => {
+  const { messageId } = req.params;
+  const { content } = req.body;
 
+  if (!content || !content.trim()) {
+    return res.status(400).json({ message: 'Message cannot be empty.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE messages
+       SET content = $1, edited_at = NOW()
+       WHERE id = $2 AND user_id = $3
+       RETURNING id, content, edited_at, conversation_id`,
+      [content, messageId, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'You can only edit your own messages.' });
+    }
+
+    const updated = result.rows[0];
+    io.to(`conversation:${updated.conversation_id}`).emit('messageEdited', updated);
+
+    res.json(updated);
+  } catch (err) {
+    console.error('Edit message error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Delete a message — only the sender can delete their own message
+app.delete('/api/messages/:messageId', authMiddleware, async (req, res) => {
+  const { messageId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM messages WHERE id = $1 AND user_id = $2 RETURNING id, conversation_id`,
+      [messageId, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'You can only delete your own messages.' });
+    }
+
+    const deleted = result.rows[0];
+    io.to(`conversation:${deleted.conversation_id}`).emit('messageDeleted', {
+      id: deleted.id,
+      conversationId: deleted.conversation_id,
+    });
+
+    res.status(200).json({ message: 'Message deleted.' });
+  } catch (err) {
+    console.error('Delete message error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 // --- READ RECEIPTS ---
 
 app.patch('/api/conversations/:conversationId/read', authMiddleware, async (req, res) => {
