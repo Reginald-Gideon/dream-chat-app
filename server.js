@@ -33,7 +33,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!passwordMatch) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
     return res.json({
       token,
       user: { id: user.id, username: user.username, email: user.email }
@@ -62,7 +62,7 @@ app.post('/api/auth/signup', async (req, res) => {
       [username, email, passwordHash]
     );
     const user = result.rows[0];
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
     res.status(201).json({ token, user });
   } catch (err) {
     console.error('Signup error:', err);
