@@ -72,6 +72,7 @@ export default function ChatPage() {
     });
 
     return () => socket.disconnect();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, conversationId]);
 
   // auto-scroll to newest message
