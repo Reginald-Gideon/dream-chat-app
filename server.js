@@ -96,13 +96,16 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
 
   const [userOneId, userTwoId] = orderUserIds(req.userId, otherUserId);
 
-  try {
-    const existing = await pool.query(
-      `SELECT * FROM conversations WHERE user_one_id = $1 AND user_two_id = $2`,
-      [userOneId, userTwoId]
+   try {
+    // must be friends first
+    const friendship = await pool.query(
+      `SELECT * FROM friendships
+       WHERE ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
+         AND status = 'accepted'`,
+      [req.userId, otherUserId]
     );
-    if (existing.rows.length > 0) {
-      return res.json(existing.rows[0]);
+    if (friendship.rows.length === 0) {
+      return res.status(403).json({ message: 'You must be friends to start a conversation.' });
     }
 
     const created = await pool.query(
@@ -144,6 +147,102 @@ app.get('/api/conversations', authMiddleware, async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('Get conversations error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+// Send a friend request
+app.post('/api/friends/request', authMiddleware, async (req, res) => {
+  const { addresseeId } = req.body;
+  if (!addresseeId) return res.status(400).json({ message: 'addresseeId is required.' });
+  if (addresseeId === req.userId) return res.status(400).json({ message: "You can't friend yourself." });
+
+  try {
+    // check if a friendship already exists in either direction
+    const existing = await pool.query(
+      `SELECT * FROM friendships
+       WHERE (requester_id = $1 AND addressee_id = $2)
+          OR (requester_id = $2 AND addressee_id = $1)`,
+      [req.userId, addresseeId]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ message: 'A friend request already exists.', status: existing.rows[0].status });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO friendships (requester_id, addressee_id, status)
+       VALUES ($1, $2, 'pending') RETURNING *`,
+      [req.userId, addresseeId]
+    );
+
+    io.to(`user:${addresseeId}`).emit('friendRequestReceived', result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Friend request error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Respond to a friend request (accept or decline)
+app.patch('/api/friends/:friendshipId', authMiddleware, async (req, res) => {
+  const { friendshipId } = req.params;
+  const { status } = req.body; // 'accepted' or 'declined'
+
+  if (!['accepted', 'declined'].includes(status)) {
+    return res.status(400).json({ message: 'Status must be accepted or declined.' });
+  }
+
+  try {
+    // only the addressee can respond to a request sent to them
+    const result = await pool.query(
+      `UPDATE friendships SET status = $1
+       WHERE id = $2 AND addressee_id = $3 AND status = 'pending'
+       RETURNING *`,
+      [status, friendshipId, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'Request not found or already handled.' });
+    }
+
+    const updated = result.rows[0];
+    io.to(`user:${updated.requester_id}`).emit('friendRequestResponded', updated);
+    res.json(updated);
+  } catch (err) {
+    console.error('Respond to request error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// List my friends (accepted only) and anyone I could still friend
+app.get('/api/friends', authMiddleware, async (req, res) => {
+  try {
+    const friends = await pool.query(
+      `SELECT u.id, u.username
+       FROM friendships f
+       JOIN users u ON u.id = CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END
+       WHERE (f.requester_id = $1 OR f.addressee_id = $1) AND f.status = 'accepted'`,
+      [req.userId]
+    );
+    res.json(friends.rows);
+  } catch (err) {
+    console.error('Get friends error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// List pending requests sent TO me
+app.get('/api/friends/requests', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT f.id AS friendship_id, u.id AS requester_id, u.username
+       FROM friendships f
+       JOIN users u ON u.id = f.requester_id
+       WHERE f.addressee_id = $1 AND f.status = 'pending'`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get requests error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
@@ -324,7 +423,7 @@ io.on('connection', (socket) => {
   socket.on('joinConversation', (conversationId) => {
     socket.join(`conversation:${conversationId}`);
   });
-
+socket.join(`user:${userId}`);
   socket.on('disconnect', () => {
     const current = onlineUsers.get(userId) || 1;
     if (current <= 1) {

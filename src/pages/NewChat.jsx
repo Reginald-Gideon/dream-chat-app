@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import "../css/NewChat.css";
 
 function getInitials(name) {
@@ -8,54 +7,66 @@ function getInitials(name) {
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [sentRequests, setSentRequests] = useState([]);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        const response = await fetch("https://dream-chat-app-1.onrender.com/api/users", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error("Failed to load users.");
-        const data = await response.json();
-        setUsers(data);
-      } catch (err) {
-        setError(err.message);
-      }
-    }
-    
-    fetchUsers();
-  }, [token]);
-
-  async function startConversation(otherUserId) {
+  async function loadAll() {
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/conversations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ otherUserId }),
-      });
-      if (!response.ok) throw new Error("Failed to start conversation.");
-      const conversation = await response.json();
-      navigate(`/chat/${conversation.id}`);
+      const [usersRes, friendsRes] = await Promise.all([
+        fetch("https://dream-chat-app-1.onrender.com/api/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("https://dream-chat-app-1.onrender.com/api/friends", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+      if (!usersRes.ok || !friendsRes.ok) throw new Error("Failed to load users.");
+      const usersData = await usersRes.json();
+      const friendsData = await friendsRes.json();
+      setUsers(usersData);
+      setFriends(friendsData);
     } catch (err) {
       setError(err.message);
     }
   }
 
+  useEffect(() => {
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  async function sendRequest(addresseeId) {
+    try {
+      const response = await fetch("https://dream-chat-app-1.onrender.com/api/friends/request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ addresseeId }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to send request.");
+      }
+      setSentRequests((prev) => [...prev, addresseeId]);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  const friendIds = friends.map((f) => f.id);
   const filtered = users.filter((u) =>
     u.username.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="newchat-page">
-      <h1 className="newchat-title">New chat</h1>
-      <p className="newchat-subtitle">Pick someone to start a conversation with.</p>
+      <h1 className="newchat-title">Add friends</h1>
+      <p className="newchat-subtitle">Send a request — once accepted, you can start chatting.</p>
 
       <div className="newchat-search">
         <span>🔍</span>
@@ -76,15 +87,28 @@ export default function UserListPage() {
       )}
 
       <ul className="newchat-list">
-        {filtered.map((u) => (
-          <li key={u.id}>
-            <button className="newchat-row" onClick={() => startConversation(u.id)}>
-              <div className="newchat-avatar">{getInitials(u.username)}</div>
-              <div className="newchat-row-name">{u.username}</div>
-              <span className="newchat-row-arrow">→</span>
-            </button>
-          </li>
-        ))}
+        {filtered.map((u) => {
+          const isFriend = friendIds.includes(u.id);
+          const requestSent = sentRequests.includes(u.id);
+
+          return (
+            <li key={u.id}>
+              <div className="newchat-row">
+                <div className="newchat-avatar">{getInitials(u.username)}</div>
+                <div className="newchat-row-name">{u.username}</div>
+                {isFriend ? (
+                  <span className="newchat-status friend">Friends</span>
+                ) : requestSent ? (
+                  <span className="newchat-status pending">Request sent</span>
+                ) : (
+                  <button className="newchat-add-button" onClick={() => sendRequest(u.id)}>
+                    Add friend
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
