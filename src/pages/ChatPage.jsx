@@ -17,13 +17,14 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editContent, setEditContent] = useState("");
 
   const bottomRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
 
-  // figure out who the other person is, once we have messages
   const otherPerson = messages.find((m) => m.username !== user?.username)?.username;
 
   // fetch existing messages
@@ -44,7 +45,7 @@ export default function ChatPage() {
     fetchMessages();
   }, [token, conversationId]);
 
-  // socket connection: live new messages + live read receipts
+  // socket connection: live new/edited/deleted messages + read receipts
   useEffect(() => {
     const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
     socket.emit("joinConversation", conversationId);
@@ -60,7 +61,7 @@ export default function ChatPage() {
 
     socket.on("messagesRead", ({ conversationId: readConvId, readerId }) => {
       if (readConvId !== Number(conversationId)) return;
-      if (readerId === user.id) return; // ignore my own read events
+      if (readerId === user.id) return;
 
       setMessages((prev) =>
         prev.map((m) =>
@@ -71,8 +72,23 @@ export default function ChatPage() {
       );
     });
 
+    socket.on("messageEdited", (updated) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === updated.id
+            ? { ...m, content: updated.content, edited_at: updated.edited_at }
+            : m
+        )
+      );
+    });
+
+    socket.on("messageDeleted", ({ id, conversationId: delConvId }) => {
+      if (delConvId !== Number(conversationId)) return;
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+    });
+
     return () => socket.disconnect();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, conversationId]);
 
   // auto-scroll to newest message
@@ -124,6 +140,43 @@ export default function ChatPage() {
     }
   }
 
+  async function handleEdit(messageId) {
+    if (!editContent.trim()) return;
+    try {
+      const response = await fetch(
+        `https://dream-chat-app-1.onrender.com/api/messages/${messageId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content: editContent }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to edit message.");
+      setEditingId(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDelete(messageId) {
+    if (!window.confirm("Delete this message?")) return;
+    try {
+      const response = await fetch(
+        `https://dream-chat-app-1.onrender.com/api/messages/${messageId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) throw new Error("Failed to delete message.");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   return (
     <div className="chat-page">
       <div className="chat-header">
@@ -134,18 +187,59 @@ export default function ChatPage() {
       <div className="message-list">
         {messages.map((msg) => {
           const isMine = msg.user_id === user.id;
+          const isEditing = editingId === msg.id;
+
           return (
             <div key={msg.id} className={`message ${isMine ? "message-mine" : "message-theirs"}`}>
               <span className="message-author">{msg.username}</span>
-              <span className="message-content">{msg.content}</span>
-              <span className="message-time">
-                {formatTime(msg.created_at)}
-                {isMine && (
-                  <span className={`read-receipt ${msg.read_at ? "read" : "sent"}`}>
-                    {msg.read_at ? " ✓✓" : " ✓"}
+
+              {isEditing ? (
+                <div className="message-edit-box">
+                  <input
+                    type="text"
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="message-edit-input"
+                    autoFocus
+                  />
+                  <div className="message-edit-buttons">
+                    <button onClick={() => handleEdit(msg.id)} className="message-edit-save">
+                      Save
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="message-edit-cancel">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <span className="message-content">
+                    {msg.content}
+                    {msg.edited_at && <span className="message-edited-tag"> (edited)</span>}
                   </span>
-                )}
-              </span>
+                  <span className="message-time">
+                    {formatTime(msg.created_at)}
+                    {isMine && (
+                      <span className={`read-receipt ${msg.read_at ? "read" : "sent"}`}>
+                        {msg.read_at ? " ✓✓" : " ✓"}
+                      </span>
+                    )}
+                  </span>
+                  {isMine && (
+                    <div className="message-actions">
+                      <button
+                        onClick={() => {
+                          setEditingId(msg.id);
+                          setEditContent(msg.content);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button onClick={() => handleDelete(msg.id)}>Delete</button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           );
         })}

@@ -164,3 +164,80 @@
 .read-receipt.read {
   color: #7CD4FF;
 }
+
+.message-edited-tag {
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.message-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.message-actions button {
+  background: none;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.message-actions button:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.message-mine .message-actions button {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.message-theirs .message-actions button {
+  color: var(--blue-deep);
+}
+
+.message-edit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.message-edit-input {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
+  outline: none;
+  color: var(--ink);
+}
+
+.message-edit-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.message-edit-buttons button {
+  border: none;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.message-edit-save {
+  background: #ffffff;
+  color: var(--blue-deep);
+}
+
+.message-edit-cancel {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
