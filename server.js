@@ -386,18 +386,18 @@ app.patch('/api/conversations/:conversationId/read', authMiddleware, async (req,
 //Create groups
 app.post('/api/groups',authMiddleware,async (req,res)=>{
   const {name,memberIds}=req.body;
-  if(!name || name.trim()){
+  if(!name || !name.trim()){
     return res.status(400).json({message:'Groups name is required.'})
   }
   try{
     const group = await pool.query(
-      `INSERT INTO groups (name,created_by) VALUEs ($1,$2) RETURNING *`,
+      `INSERT INTO groups (name,created_by) VALUES ($1,$2) RETURNING *`,
       [name,req.userId]
     )
     const groupId = group.rows[0].id;
     //creator joins automatically
     await pool.query(
-      `INSERT INTO groups (group_id,user_id) VALUES ($1,$2)`,
+      `INSERT INTO groups_members (group_id,user_id) VALUES ($1,$2)`,
       [groupId,req.userId]
     )
     //add initial members, but only if they are actually friends 
