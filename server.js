@@ -397,7 +397,7 @@ app.post('/api/groups',authMiddleware,async (req,res)=>{
     const groupId = group.rows[0].id;
     //creator joins automatically
     await pool.query(
-      `INSERT INTO groups_members (group_id,user_id) VALUES ($1,$2)`,
+      `INSERT INTO group_members (group_id,user_id) VALUES ($1,$2)`,
       [groupId,req.userId]
     )
     //add initial members, but only if they are actually friends 
