@@ -383,7 +383,124 @@ app.patch('/api/conversations/:conversationId/read', authMiddleware, async (req,
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+//Create groups
+app.post('/api/groups',authMiddleware,async (req,res)=>{
+  const {name,memberIds}=req.body;
+  if(!name || name.trim()){
+    return res.status(400).json({message:'Groups name is required.'})
+  }
+  try{
+    const group = await pool.query(
+      `INSERT INTO groups (name,created_by) VALUEs ($1,$2) RETURNING *`,
+      [name,req.userId]
+    )
+    const groupId = group.rows[0].id;
+    //creator joins automatically
+    await pool.query(
+      `INSERT INTO groups (group_id,user_id) VALUES ($1,$2)`,
+      [groupId,req.userId]
+    )
+    //add initial members, but only if they are actually friends 
+    if(Array.isArray(memberIds)){
+      for (const memberId of memberIds){
+        const friendship = await pool.query(
+          `SELECT * FROM friendships
+           WHERE ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
+             AND status = 'accepted'`,
+          [req.userId, memberId]
+        );
+        if(friendship.rows.length>0){
+          await pool.query(
+            `INSERT INTO group_members (group_id,user_id) VALUES ($1,$2)
+            ON CONFLICT DO NOTHING`,
+            [groupId,memberId]
+          )
+        }
+      }
+  }
+  res.status(201).json(group.rows[0]);
 
+}catch(err){
+console.error('Create group error:',err);
+res.status(500).json({message:'Internal server error.'});
+  }
+})
+//listing groups
+app.get('/api/groups', authMiddleware, async (req, res) => {
+  try{
+    const result = await pool.query(
+      `SELECT g.id, g.name, g.created_by
+       FROM groups g
+       JOIN group_members gm ON g.id = gm.group_id
+       WHERE gm.user_id = $1`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  }
+  catch (err) {
+    console.error('List groups error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+})
+//sending group messages
+app.post('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
+  const { groupId } = req.params;
+  const { content } = req.body;
+  if (!content || !content.trim()) {
+    return res.status(400).json({ message: 'Message cannot be empty.' });
+  }
+
+  try {
+    // confirm the sender is actually a member
+    const membership = await pool.query(
+      `SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2`,
+      [groupId, req.userId]
+    );
+    if (membership.rows.length === 0) {
+      return res.status(403).json({ message: 'You are not a member of this group.' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO messages (content, user_id, group_id)
+       VALUES ($1, $2, $3)
+       RETURNING id, content, created_at`,
+      [content, req.userId, groupId]
+    );
+
+    const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [req.userId]);
+    const fullMessage = {
+      ...result.rows[0],
+      username: userResult.rows[0].username,
+      user_id: req.userId,
+      groupId: Number(groupId),
+    };
+
+    io.to(`group:${groupId}`).emit('newGroupMessage', fullMessage);
+
+    res.status(201).json(fullMessage);
+  } catch (err) {
+    console.error('Post group message error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+//fetching group messages
+app.get('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
+  const { groupId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT messages.id, messages.content, messages.created_at, messages.user_id, users.username
+       FROM messages
+       JOIN users ON messages.user_id = users.id
+       WHERE messages.group_id = $1
+       ORDER BY messages.created_at ASC`,
+      [groupId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get group messages error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 // --- SOCKET.IO SETUP ---
 
 const server = http.createServer(app);
@@ -433,6 +550,9 @@ socket.join(`user:${userId}`);
       onlineUsers.set(userId, current - 1);
     }
   });
+  socket.on('joinGroup', (groupId) => {
+  socket.join(`group:${groupId}`);
+});
 });
 
 server.listen(3001, () => {

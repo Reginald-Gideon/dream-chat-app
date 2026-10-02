@@ -27,6 +27,9 @@ export default function Layout() {
         <NavLink to="/requests" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
   Requests
 </NavLink>
+<NavLink to="/groups" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
+  Groups
+</NavLink>
         <button onClick={handleLogout} className="nav-logout">Log out</button>
       </nav>
       <div className="app-content">
