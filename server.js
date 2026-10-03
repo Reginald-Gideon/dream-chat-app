@@ -488,16 +488,74 @@ app.get('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
   const { groupId } = req.params;
   try {
     const result = await pool.query(
-      `SELECT messages.id, messages.content, messages.created_at, messages.user_id, users.username
-       FROM messages
-       JOIN users ON messages.user_id = users.id
-       WHERE messages.group_id = $1
-       ORDER BY messages.created_at ASC`,
+   `SELECT messages.id, messages.content, messages.created_at, messages.edited_at, messages.user_id, users.username
+ FROM messages
+ JOIN users ON messages.user_id = users.id
+ WHERE messages.group_id = $1
+ ORDER BY messages.created_at ASC`,
       [groupId]
     );
     res.json(result.rows);
   } catch (err) {
     console.error('Get group messages error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+// Edit a group message — only the sender can edit their own
+app.patch('/api/groups/messages/:messageId', authMiddleware, async (req, res) => {
+  const { messageId } = req.params;
+  const { content } = req.body;
+
+  if (!content || !content.trim()) {
+    return res.status(400).json({ message: 'Message cannot be empty.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE messages
+       SET content = $1, edited_at = NOW()
+       WHERE id = $2 AND user_id = $3
+       RETURNING id, content, edited_at, group_id`,
+      [content, messageId, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'You can only edit your own messages.' });
+    }
+
+    const updated = result.rows[0];
+    io.to(`group:${updated.group_id}`).emit('groupMessageEdited', updated);
+
+    res.json(updated);
+  } catch (err) {
+    console.error('Edit group message error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Delete a group message — only the sender can delete their own
+app.delete('/api/groups/messages/:messageId', authMiddleware, async (req, res) => {
+  const { messageId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM messages WHERE id = $1 AND user_id = $2 RETURNING id, group_id`,
+      [messageId, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'You can only delete your own messages.' });
+    }
+
+    const deleted = result.rows[0];
+    io.to(`group:${deleted.group_id}`).emit('groupMessageDeleted', {
+      id: deleted.id,
+      groupId: deleted.group_id,
+    });
+
+    res.status(200).json({ message: 'Message deleted.' });
+  } catch (err) {
+    console.error('Delete group message error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });

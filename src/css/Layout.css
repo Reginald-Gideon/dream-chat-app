@@ -15,9 +15,13 @@
   box-sizing: border-box;
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
 .app-layout {
   min-height: 100vh;
-  display: flex;
   background: var(--bg-page);
   font-family: "Inter", sans-serif;
   color: var(--ink);
@@ -26,15 +30,15 @@
 /* --- Sidebar (desktop) --- */
 .app-sidebar {
   width: 240px;
-  min-width: 240px;
   background: #ffffff;
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   padding: 20px 16px;
-  position: sticky;
+  position: fixed;
   top: 0;
-  height: 100vh;
+  left: 0;
+  bottom: 0;
 }
 
 .sidebar-brand {
@@ -127,10 +131,10 @@
 }
 
 .app-content {
-  flex: 1;
+  margin-left: 240px;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  min-width: 0;
 }
 
 /* --- Mobile bottom tab bar (hidden on desktop) --- */
@@ -144,11 +148,8 @@
     display: none;
   }
 
-  .app-layout {
-    flex-direction: column;
-  }
-
   .app-content {
+    margin-left: 0;
     padding-bottom: 64px; /* room for the fixed tab bar */
   }
 
