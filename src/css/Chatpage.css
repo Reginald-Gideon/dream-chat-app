@@ -241,3 +241,27 @@
   color: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.4) !important;
 }
+
+/* --- Responsive --- */
+@media (max-width: 640px) {
+  .chat-header {
+    padding: 12px 14px;
+  }
+
+  .message-list {
+    padding: 14px;
+  }
+
+  .message {
+    max-width: 85%;
+  }
+
+  .message-form {
+    padding: 12px 14px;
+  }
+
+  .send-button {
+    padding: 0 16px;
+    font-size: 13px;
+  }
+}

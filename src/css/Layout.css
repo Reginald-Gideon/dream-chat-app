@@ -1,98 +1,186 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap");
 
 :root {
-  --blue-primary: #49AAFF;
-  --blue-deep: #2D8CE0;
-  --blue-light: #D2E8FC;
-  --blue-pale: #EAF4FF;
-  --ink: #101010;
+  --blue-primary: #2563EB;
+  --blue-deep: #1D4ED8;
+  --blue-light: #DBEAFE;
+  --blue-pale: #EFF6FF;
+  --ink: #111827;
   --gray-neutral: #6B7280;
-  --border-subtle: #E3EDF9;
+  --border-subtle: #E5E7EB;
+  --bg-page: #F7F8FA;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 .app-layout {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
-  background: linear-gradient(160deg, #EAF4FF 0%, #F7FBFF 45%, #ffffff 100%);
+  background: var(--bg-page);
   font-family: "Inter", sans-serif;
   color: var(--ink);
 }
 
-.app-nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 24px;
+/* --- Sidebar (desktop) --- */
+.app-sidebar {
+  width: 240px;
+  min-width: 240px;
   background: #ffffff;
-  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
 }
 
-.app-nav-brand {
+.sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-right: auto;
+  gap: 10px;
+  padding: 0 8px;
+  margin-bottom: 28px;
 }
 
-.app-nav-brand-icon {
-  width: 30px;
-  height: 30px;
+.sidebar-brand-icon {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--blue-primary), var(--blue-deep));
+  background: var(--blue-primary);
   border-radius: 9px;
-  font-size: 15px;
+  font-size: 16px;
 }
 
-.app-nav-brand-name {
+.sidebar-brand-name {
   font-family: "Space Grotesk", sans-serif;
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: 700;
+  font-size: 17px;
   color: var(--ink);
 }
 
-.nav-link {
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 10px;
   color: var(--gray-neutral);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 999px;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.nav-link:hover {
+.sidebar-link:hover {
   background: var(--blue-pale);
   color: var(--ink);
 }
 
-.nav-link.active {
+.sidebar-link.active {
   background: var(--blue-primary);
   color: #ffffff;
 }
 
-.nav-logout {
-  background: transparent;
-  border: 1.5px solid var(--border-subtle);
-  color: var(--gray-neutral);
-  border-radius: 999px;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  margin-left: 8px;
-  transition: border-color 0.15s ease, color 0.15s ease;
+.sidebar-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 14px;
+  margin-top: 14px;
 }
 
-.nav-logout:hover {
-  border-color: var(--blue-primary);
-  color: var(--blue-deep);
+.sidebar-user {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0 12px 10px;
+}
+
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--gray-neutral);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 11px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.sidebar-logout:hover {
+  background: #FEF2F2;
+  color: #DC2626;
 }
 
 .app-content {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+}
+
+/* --- Mobile bottom tab bar (hidden on desktop) --- */
+.mobile-tabbar {
+  display: none;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  .app-sidebar {
+    display: none;
+  }
+
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .app-content {
+    padding-bottom: 64px; /* room for the fixed tab bar */
+  }
+
+  .mobile-tabbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #ffffff;
+    border-top: 1px solid var(--border-subtle);
+    z-index: 50;
+  }
+
+  .tabbar-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    color: var(--gray-neutral);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  .tabbar-link.active {
+    background: var(--blue-primary);
+    color: #ffffff;
+  }
 }

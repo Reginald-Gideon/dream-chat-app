@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import "../css/Inboxpage.css";
 
 function getInitials(name) {
@@ -30,7 +30,12 @@ export default function GroupsPage() {
 
   return (
     <div className="inbox-page">
-      <h1 className="inbox-title">Groups</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <h1 className="inbox-title" style={{ marginBottom: 0 }}>Groups</h1>
+        <Link to="/create-group" className="newchat-add-button" style={{ textDecoration: "none" }}>
+          + Create group
+        </Link>
+      </div>
 
       {error && <p className="inbox-error">{error}</p>}
 
