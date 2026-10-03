@@ -251,17 +251,17 @@ app.get('/api/friends/requests', authMiddleware, async (req, res) => {
 
 app.post('/api/conversations/:conversationId/messages', authMiddleware, async (req, res) => {
   const { conversationId } = req.params;
-  const { content } = req.body;
+  const { content, replyToId } = req.body;
   if (!content || !content.trim()) {
     return res.status(400).json({ message: 'Message cannot be empty.' });
   }
 
   try {
     const result = await pool.query(
-      `INSERT INTO messages (content, user_id, conversation_id)
-       VALUES ($1, $2, $3)
-       RETURNING id, content, created_at`,
-      [content, req.userId, conversationId]
+      `INSERT INTO messages (content, user_id, conversation_id, reply_to_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, content, created_at, reply_to_id`,
+      [content, req.userId, conversationId, replyToId || null]
     );
 
     const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [req.userId]);
@@ -286,11 +286,17 @@ app.get('/api/conversations/:conversationId/messages', authMiddleware, async (re
   const { conversationId } = req.params;
   try {
     const result = await pool.query(
-     `SELECT messages.id, messages.content, messages.created_at, messages.read_at, messages.edited_at, messages.user_id, users.username
- FROM messages
- JOIN users ON messages.user_id = users.id
- WHERE messages.conversation_id = $1
- ORDER BY messages.created_at ASC`,
+      `SELECT 
+         m.id, m.content, m.created_at, m.read_at, m.edited_at, m.user_id, m.reply_to_id,
+         u.username,
+         r.content AS reply_content,
+         ru.username AS reply_username
+       FROM messages m
+       JOIN users u ON m.user_id = u.id
+       LEFT JOIN messages r ON m.reply_to_id = r.id
+       LEFT JOIN users ru ON r.user_id = ru.id
+       WHERE m.conversation_id = $1
+       ORDER BY m.created_at ASC`,
       [conversationId]
     );
     res.json(result.rows);
