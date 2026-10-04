@@ -494,11 +494,17 @@ app.get('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
   const { groupId } = req.params;
   try {
     const result = await pool.query(
-   `SELECT messages.id, messages.content, messages.created_at, messages.edited_at, messages.user_id, users.username
- FROM messages
- JOIN users ON messages.user_id = users.id
- WHERE messages.group_id = $1
- ORDER BY messages.created_at ASC`,
+      `SELECT 
+         m.id, m.content, m.created_at, m.edited_at, m.user_id, m.reply_to_id,
+         u.username,
+         r.content AS reply_content,
+         ru.username AS reply_username
+       FROM messages m
+       JOIN users u ON m.user_id = u.id
+       LEFT JOIN messages r ON m.reply_to_id = r.id
+       LEFT JOIN users ru ON r.user_id = ru.id
+       WHERE m.group_id = $1
+       ORDER BY m.created_at ASC`,
       [groupId]
     );
     res.json(result.rows);
@@ -616,6 +622,15 @@ socket.join(`user:${userId}`);
   });
   socket.on('joinGroup', (groupId) => {
   socket.join(`group:${groupId}`);
+});
+socket.on('typing', ({ conversationId, groupId }) => {
+  const room = conversationId ? `conversation:${conversationId}` : `group:${groupId}`;
+  socket.to(room).emit('userTyping', { userId: socket.userId, conversationId, groupId });
+});
+
+socket.on('stopTyping', ({ conversationId, groupId }) => {
+  const room = conversationId ? `conversation:${conversationId}` : `group:${groupId}`;
+  socket.to(room).emit('userStoppedTyping', { userId: socket.userId, conversationId, groupId });
 });
 });
 

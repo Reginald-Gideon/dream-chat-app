@@ -19,8 +19,12 @@ export default function ChatPage() {
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editContent, setEditContent] = useState("");
-
+  const [replyingTo, setReplyingTo] = useState(null); // { id, content, username }
+  const [otherIsTyping, setOtherIsTyping] = useState(false);
+const typingTimeoutRef = useRef(null);
+const socketRef = useRef(null);
   const bottomRef = useRef(null);
+  const inputRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
@@ -45,7 +49,7 @@ export default function ChatPage() {
     fetchMessages();
   }, [token, conversationId]);
 
-  // socket connection: live new/edited/deleted messages + read receipts
+  // socket connection
   useEffect(() => {
     const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
     socket.emit("joinConversation", conversationId);
@@ -91,12 +95,10 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, conversationId]);
 
-  // auto-scroll to newest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // mark this conversation's messages as read when it's opened
   useEffect(() => {
     async function markAsRead() {
       try {
@@ -130,14 +132,20 @@ export default function ChatPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ content: newMessage }),
+          body: JSON.stringify({
+            content: newMessage,
+            replyToId: replyingTo ? replyingTo.id : null,
+          }),
         }
       );
       if (!response.ok) throw new Error("Failed to send message.");
       setNewMessage("");
+      setReplyingTo(null);
     } catch (err) {
       setError(err.message);
     }
+    clearTimeout(typingTimeoutRef.current);
+socketRef.current?.emit("stopTyping", { conversationId: Number(conversationId) });
   }
 
   async function handleEdit(messageId) {
@@ -176,6 +184,42 @@ export default function ChatPage() {
       setError(err.message);
     }
   }
+useEffect(() => {
+  const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+  socketRef.current = socket;
+  socket.emit("joinConversation", conversationId);
+
+  // ...all your existing listeners (newMessage, messagesRead, messageEdited, messageDeleted) stay here...
+
+  socket.on("userTyping", ({ conversationId: typingConvId }) => {
+    if (typingConvId !== Number(conversationId)) return;
+    setOtherIsTyping(true);
+  });
+
+  socket.on("userStoppedTyping", ({ conversationId: typingConvId }) => {
+    if (typingConvId !== Number(conversationId)) return;
+    setOtherIsTyping(false);
+  });
+
+  return () => socket.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [token, conversationId]);
+  function startReply(msg) {
+    setReplyingTo({ id: msg.id, content: msg.content, username: msg.username });
+    inputRef.current?.focus();
+  }
+  function handleTyping(e) {
+  setNewMessage(e.target.value);
+
+  if (!socketRef.current) return;
+
+  socketRef.current.emit("typing", { conversationId: Number(conversationId) });
+
+  clearTimeout(typingTimeoutRef.current);
+  typingTimeoutRef.current = setTimeout(() => {
+    socketRef.current.emit("stopTyping", { conversationId: Number(conversationId) });
+  }, 2000);
+}
 
   return (
     <div className="chat-page">
@@ -183,7 +227,9 @@ export default function ChatPage() {
         <div className="chat-header-avatar">{getInitials(otherPerson)}</div>
         <div className="chat-header-name">{otherPerson || "Chat"}</div>
       </div>
-
+{otherIsTyping && (
+  <div className="typing-indicator">{otherPerson} is typing...</div>
+)}
       <div className="message-list">
         {messages.map((msg) => {
           const isMine = msg.user_id === user.id;
@@ -213,6 +259,15 @@ export default function ChatPage() {
                 </div>
               ) : (
                 <>
+                  {msg.reply_to_id && (
+                    <div className="message-reply-quote">
+                      <span className="message-reply-author">{msg.reply_username || "Deleted"}</span>
+                      <span className="message-reply-text">
+                        {msg.reply_content || "Original message deleted"}
+                      </span>
+                    </div>
+                  )}
+
                   <span className="message-content">
                     {msg.content}
                     {msg.edited_at && <span className="message-edited-tag"> (edited)</span>}
@@ -225,19 +280,22 @@ export default function ChatPage() {
                       </span>
                     )}
                   </span>
-                  {isMine && (
-                    <div className="message-actions">
-                      <button
-                        onClick={() => {
-                          setEditingId(msg.id);
-                          setEditContent(msg.content);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button onClick={() => handleDelete(msg.id)}>Delete</button>
-                    </div>
-                  )}
+                  <div className="message-actions">
+                    <button onClick={() => startReply(msg)}>Reply</button>
+                    {isMine && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingId(msg.id);
+                            setEditContent(msg.content);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(msg.id)}>Delete</button>
+                      </>
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -248,11 +306,24 @@ export default function ChatPage() {
 
       {error && <p className="chat-error">{error}</p>}
 
+      {replyingTo && (
+        <div className="reply-preview">
+          <div className="reply-preview-text">
+            <span className="reply-preview-label">Replying to {replyingTo.username}</span>
+            <span className="reply-preview-content">{replyingTo.content}</span>
+          </div>
+          <button className="reply-preview-cancel" onClick={() => setReplyingTo(null)}>
+            ✕
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSend} className="message-form">
         <input
+          ref={inputRef}
           type="text"
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
+          onChange={handleTyping}
           placeholder="Type a message..."
           className="message-input"
         />

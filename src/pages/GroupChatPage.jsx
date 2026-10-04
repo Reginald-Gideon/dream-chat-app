@@ -20,12 +20,13 @@ export default function GroupChatPage() {
   const [groupName, setGroupName] = useState("Group");
   const [editingId, setEditingId] = useState(null);
   const [editContent, setEditContent] = useState("");
+  const [replyingTo, setReplyingTo] = useState(null);
 
   const bottomRef = useRef(null);
+  const inputRef = useRef(null);
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
 
-  // find this group's name for the header
   useEffect(() => {
     async function fetchGroupName() {
       try {
@@ -43,7 +44,6 @@ export default function GroupChatPage() {
     fetchGroupName();
   }, [token, groupId]);
 
-  // fetch existing messages
   useEffect(() => {
     async function fetchMessages() {
       try {
@@ -61,7 +61,6 @@ export default function GroupChatPage() {
     fetchMessages();
   }, [token, groupId]);
 
-  // socket connection
   useEffect(() => {
     const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
     socket.emit("joinGroup", groupId);
@@ -111,11 +110,15 @@ export default function GroupChatPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ content: newMessage }),
+          body: JSON.stringify({
+            content: newMessage,
+            replyToId: replyingTo ? replyingTo.id : null,
+          }),
         }
       );
       if (!response.ok) throw new Error("Failed to send message.");
       setNewMessage("");
+      setReplyingTo(null);
     } catch (err) {
       setError(err.message);
     }
@@ -158,6 +161,11 @@ export default function GroupChatPage() {
     }
   }
 
+  function startReply(msg) {
+    setReplyingTo({ id: msg.id, content: msg.content, username: msg.username });
+    inputRef.current?.focus();
+  }
+
   return (
     <div className="chat-page">
       <div className="chat-header">
@@ -194,24 +202,37 @@ export default function GroupChatPage() {
                 </div>
               ) : (
                 <>
+                  {msg.reply_to_id && (
+                    <div className="message-reply-quote">
+                      <span className="message-reply-author">{msg.reply_username || "Deleted"}</span>
+                      <span className="message-reply-text">
+                        {msg.reply_content || "Original message deleted"}
+                      </span>
+                    </div>
+                  )}
+
                   <span className="message-content">
                     {msg.content}
                     {msg.edited_at && <span className="message-edited-tag"> (edited)</span>}
                   </span>
                   <span className="message-time">{formatTime(msg.created_at)}</span>
-                  {isMine && (
-                    <div className="message-actions">
-                      <button
-                        onClick={() => {
-                          setEditingId(msg.id);
-                          setEditContent(msg.content);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button onClick={() => handleDelete(msg.id)}>Delete</button>
-                    </div>
-                  )}
+
+                  <div className="message-actions">
+                    <button onClick={() => startReply(msg)}>Reply</button>
+                    {isMine && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingId(msg.id);
+                            setEditContent(msg.content);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(msg.id)}>Delete</button>
+                      </>
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -222,8 +243,21 @@ export default function GroupChatPage() {
 
       {error && <p className="chat-error">{error}</p>}
 
+      {replyingTo && (
+        <div className="reply-preview">
+          <div className="reply-preview-text">
+            <span className="reply-preview-label">Replying to {replyingTo.username}</span>
+            <span className="reply-preview-content">{replyingTo.content}</span>
+          </div>
+          <button className="reply-preview-cancel" onClick={() => setReplyingTo(null)}>
+            ✕
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSend} className="message-form">
         <input
+          ref={inputRef}
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
