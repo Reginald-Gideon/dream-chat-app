@@ -226,10 +226,9 @@ useEffect(() => {
       <div className="chat-header">
         <div className="chat-header-avatar">{getInitials(otherPerson)}</div>
         <div className="chat-header-name">{otherPerson || "Chat"}</div>
+        
       </div>
-{otherIsTyping && (
-  <div className="typing-indicator">{otherPerson} is typing...</div>
-)}
+
       <div className="message-list">
         {messages.map((msg) => {
           const isMine = msg.user_id === user.id;
@@ -317,7 +316,9 @@ useEffect(() => {
           </button>
         </div>
       )}
-
+{otherIsTyping && (
+  <div className="typing-indicator">{otherPerson} is typing...</div>
+)}
       <form onSubmit={handleSend} className="message-form">
         <input
           ref={inputRef}

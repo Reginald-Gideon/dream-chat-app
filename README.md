@@ -1,73 +1,85 @@
-# Getting Started with Create React App
+﻿# Morphues
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Morphues is a sleek, real-time messaging and social app built for conversations that feel personal, fast, and alive. It blends private chats, group communities, and social discovery into one smooth experience.
 
-## Available Scripts
+## What the website feels like
 
-In the project directory, you can run:
+Imagine a modern chat platform with:
 
-### `npm start`
+- a clean sidebar for inbox, groups, and requests
+- quick access to direct messages and friend activity
+- a polished dark-glass aesthetic with vibrant accents
+- live messaging that feels instant and social
+- community spaces where people can talk together in real time
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+The app is designed to feel like a premium social hub where conversations move naturally from one friend or group to the next.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Highlights
 
-### `npm test`
+### Messaging experience
+- Private one-on-one conversations
+- Real-time sending and receiving of messages
+- Clean chat interface built for easy reading
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Social features
+- Friend requests and connection flow
+- Group creation and community chat rooms
+- A social dashboard that keeps conversations organized
 
-### `npm run build`
+### Modern UI
+- Minimal, stylish layout
+- Responsive design for desktop and mobile-friendly viewing
+- Soft gradients, modern typography, and a futuristic feel
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## App overview
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```text
++----------------------------------------------------+
+| Morphues            Inbox   Groups   Requests      |
++----------------------------------------------------+
+| Friends / Chats                  | Live Chat Thread |
+| Alice                          | Hey, are you free  |
+| Jordan                        | for tonight?       |
+| Maya                          |                    |
+| + New Chat                    | Reply...           |
++----------------------------------------------------+
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+This gives the site a social-chat-app feel: organized on the left, active conversation in the center, and a modern polished interface throughout.
 
-### `npm run eject`
+## Tech stack
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- React
+- Node.js
+- Express
+- Socket.IO
+- PostgreSQL
+- Custom real-time messaging backend
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Getting started
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+1. Install dependencies:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```bash
+npm install
+```
 
-## Learn More
+2. Start the app in development mode:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+npm start
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+3. Open the app in your browser at:
 
-### Code Splitting
+```text
+http://localhost:3000
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## Project purpose
 
-### Analyzing the Bundle Size
+Morphues is more than a chat app. It is built to feel like a social space where people can connect, create communities, and keep conversations flowing naturally in real time.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## License
 
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-"# dream-chat-app" 
-# dream-chat-app
-"# Dream-Chatapp" 
+This project is for personal and educational use unless otherwise specified by the project owner.
