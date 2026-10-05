@@ -550,6 +550,7 @@
 .message-reply-author {
   font-size: 11px;
   font-weight: 700;
+  color: var(--blue-deep);
 }
 
 .message-reply-text {
@@ -558,6 +559,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 220px;
+  color: var(--gray-neutral);
 }
 
 /* --- Reply preview above the input, while composing --- */
@@ -607,5 +609,5 @@
   padding: 4px 20px;
   font-size: 12px;
   font-style: italic;
-  color: var(rgb(255, 255, 255));
+  color: var(--white);
 }

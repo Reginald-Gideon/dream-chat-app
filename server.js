@@ -259,9 +259,15 @@ app.post('/api/conversations/:conversationId/messages', authMiddleware, async (r
 
   try {
     const result = await pool.query(
-      `INSERT INTO messages (content, user_id, conversation_id, reply_to_id)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, content, created_at, reply_to_id`,
+      `WITH inserted AS (
+         INSERT INTO messages (content, user_id, conversation_id, reply_to_id)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, content, created_at, reply_to_id
+       )
+       SELECT inserted.*, r.content AS reply_content, ru.username AS reply_username
+       FROM inserted
+       LEFT JOIN messages r ON inserted.reply_to_id = r.id
+       LEFT JOIN users ru ON r.user_id = ru.id`,
       [content, req.userId, conversationId, replyToId || null]
     );
 
