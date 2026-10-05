@@ -9,10 +9,11 @@ import ProtectedRoute from './pages/ProtectedRoute';
 import Layout from './pages/Layout';
 import InboxPage from './pages/InboxPage';
 import RequestsPage from './pages/RequestsPage.jsx'
-  import CreateGroup from './pages/CreateGroup';
+import CreateGroup from './pages/CreateGroup';
 import GroupsPage from './pages/GroupsPage';
 import GroupChatPage from './pages/GroupChatPage';
-
+import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
 function App() {
   return (
     <BrowserRouter>
@@ -21,6 +22,8 @@ function App() {
   <Route path="/signup" element={<SignupPage />} />
 
   <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+<Route path='/settings' element={<SettingsPage />} />
+<Route path="/profile" element={<ProfilePage />} />
 <Route path="/create-group" element={<CreateGroup />} />
 <Route path="/groups" element={<GroupsPage />} />
 <Route path="/group/:groupId" element={<GroupChatPage />} />

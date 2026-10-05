@@ -2,10 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Inboxpage.css";
+import Avatar from "../components/Avatar";
 
-function getInitials(name) {
-  return name ? name.slice(0, 2).toUpperCase() : "?";
-}
 
 export default function InboxPage() {
   const [conversations, setConversations] = useState([]);
@@ -90,10 +88,9 @@ socket.on("connect_error", (err) => {
         {filtered.map((c) => (
           <li key={c.conversation_id}>
             <button className="inbox-row" onClick={() => navigate(`/chat/${c.conversation_id}`)}>
-              <div className="inbox-avatar">
-                {getInitials(c.other_username)}
+              <Avatar src={c.other_avatar} name={c.other_username} className="inbox-avatar" />
                 {onlineUserIds.includes(c.other_user_id) && <span className="online-dot" />}
-              </div>
+              
               <div className="inbox-row-content">
                 <div className="inbox-row-name">{c.other_username}</div>
                 <div className="inbox-row-preview">{c.last_message || "No messages yet"}</div>

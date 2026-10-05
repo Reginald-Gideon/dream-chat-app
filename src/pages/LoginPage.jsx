@@ -39,6 +39,7 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+    
   }
 
   return (

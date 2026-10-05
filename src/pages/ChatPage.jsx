@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Chatpage.css";
-
+import Avatar from "../components/Avatar";
 function formatTime(timestamp) {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -25,11 +25,13 @@ const typingTimeoutRef = useRef(null);
 const socketRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
-
+const otherMessage = messages.find((m) => m.username !== user?.username);
+const otherPerson = otherMessage?.username;
+const otherAvatar = otherMessage?.avatar;
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
 
-  const otherPerson = messages.find((m) => m.username !== user?.username)?.username;
+  
 
   // fetch existing messages
   useEffect(() => {
@@ -224,7 +226,7 @@ useEffect(() => {
   return (
     <div className="chat-page">
       <div className="chat-header">
-        <div className="chat-header-avatar">{getInitials(otherPerson)}</div>
+        <Avatar src={otherAvatar} name={otherPerson} className="chat-header-avatar" />
         <div className="chat-header-name">{otherPerson || "Chat"}</div>
         
       </div>

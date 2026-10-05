@@ -36,7 +36,7 @@ app.post('/api/auth/login', async (req, res) => {
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
     return res.json({
       token,
-      user: { id: user.id, username: user.username, email: user.email }
+      user: { id: user.id, username: user.username, email: user.email ,avatar:user.avatar}
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -56,10 +56,10 @@ app.post('/api/auth/signup', async (req, res) => {
     }
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      `INSERT INTO users (username, email, password_hash)
-       VALUES ($1, $2, $3)
-       RETURNING id, username, email`,
-      [username, email, passwordHash]
+      `INSERT INTO users (username, email, password_hash,avatar)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, username, email, avatar`,
+      [username, email, passwordHash, null]
     );
     const user = result.rows[0];
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
@@ -76,7 +76,7 @@ app.post('/api/auth/signup', async (req, res) => {
 app.get('/api/users', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, username FROM users WHERE id != $1',
+      'SELECT id, username, avatar FROM users WHERE id != $1',
       [req.userId]
     );
     res.json(result.rows);
@@ -128,6 +128,7 @@ app.get('/api/conversations', authMiddleware, async (req, res) => {
          c.id AS conversation_id,
          CASE WHEN c.user_one_id = $1 THEN u2.username ELSE u1.username END AS other_username,
          CASE WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END AS other_user_id,
+         CASE WHEN c.user_one_id = $1 THEN u2.avatar ELSE u1.avatar END AS other_user_avatar,
          m.content AS last_message,
          m.created_at AS last_message_at
        FROM conversations c
@@ -217,7 +218,7 @@ app.patch('/api/friends/:friendshipId', authMiddleware, async (req, res) => {
 app.get('/api/friends', authMiddleware, async (req, res) => {
   try {
     const friends = await pool.query(
-      `SELECT u.id, u.username
+      `SELECT u.id, u.username, u.avatar  
        FROM friendships f
        JOIN users u ON u.id = CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END
        WHERE (f.requester_id = $1 OR f.addressee_id = $1) AND f.status = 'accepted'`,
@@ -234,7 +235,7 @@ app.get('/api/friends', authMiddleware, async (req, res) => {
 app.get('/api/friends/requests', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT f.id AS friendship_id, u.id AS requester_id, u.username
+      `SELECT f.id AS friendship_id, u.id AS requester_id, u.username, u.avatar
        FROM friendships f
        JOIN users u ON u.id = f.requester_id
        WHERE f.addressee_id = $1 AND f.status = 'pending'`,
@@ -264,10 +265,11 @@ app.post('/api/conversations/:conversationId/messages', authMiddleware, async (r
       [content, req.userId, conversationId, replyToId || null]
     );
 
-    const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [req.userId]);
+    const userResult = await pool.query('SELECT username, avatar FROM users WHERE id = $1', [req.userId]);
     const fullMessage = {
       ...result.rows[0],
       username: userResult.rows[0].username,
+      avatar: userResult.rows[0].avatar,
       user_id: req.userId,
       read_at: null,
       conversationId: Number(conversationId),
@@ -289,6 +291,7 @@ app.get('/api/conversations/:conversationId/messages', authMiddleware, async (re
       `SELECT 
          m.id, m.content, m.created_at, m.read_at, m.edited_at, m.user_id, m.reply_to_id,
          u.username,
+         u.avatar AS user_avatar,     
          r.content AS reply_content,
          ru.username AS reply_username
        FROM messages m
@@ -568,6 +571,86 @@ app.delete('/api/groups/messages/:messageId', authMiddleware, async (req, res) =
     res.status(200).json({ message: 'Message deleted.' });
   } catch (err) {
     console.error('Delete group message error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+// Adding profile
+app.patch('api/users/avatar',authMiddleware, async (req,res)=>{
+  const {avatar} = req.body
+
+if(!avatar){
+  return res.status(404).json({message:'Avatar is required.'})
+}
+if(avatar.length>7000){
+  return res.status(400).json({message:'Avatar is too large.'})
+}
+try{
+  await pool.query('UPDATE users SET avatar = $1 WHERE id = $2',[avatar,req.userId])
+  res.status(200).json({message:'Avatar updated successfully.'})
+}
+catch(err){
+  console.error('Update avatar error:', err);
+  res.status(500).json({ message: 'Internal server error.' });
+}
+})
+// Update username
+app.patch('/api/users/username', authMiddleware, async (req, res) => {
+  const { username } = req.body;
+  if (!username || !username.trim()) {
+    return res.status(400).json({ message: 'Username is required.' });
+  }
+  try {
+    const existing = await pool.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, req.userId]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ message: 'That username is already taken.' });
+    }
+    await pool.query('UPDATE users SET username = $1 WHERE id = $2', [username, req.userId]);
+    res.json({ username });
+  } catch (err) {
+    console.error('Update username error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Update email
+app.patch('/api/users/email', authMiddleware, async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.trim()) {
+    return res.status(400).json({ message: 'Email is required.' });
+  }
+  try {
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.userId]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ message: 'That email is already in use.' });
+    }
+    await pool.query('UPDATE users SET email = $1 WHERE id = $2', [email, req.userId]);
+    res.json({ email });
+  } catch (err) {
+    console.error('Update email error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Update password — requires current password for security
+app.patch('/api/users/password', authMiddleware, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Current and new password are required.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'New password must be at least 6 characters.' });
+  }
+  try {
+    const result = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.userId]);
+    const match = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+    if (!match) {
+      return res.status(401).json({ message: 'Current password is incorrect.' });
+    }
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.userId]);
+    res.json({ message: 'Password updated.' });
+  } catch (err) {
+    console.error('Update password error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
