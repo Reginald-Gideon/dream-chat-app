@@ -39,7 +39,21 @@ const LogoutIcon = () => (
     <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 );
-
+const SettingsIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 1.72l-.18 1.26a8 8 0 0 0-1.73 1l-1.2-.48a2 2 0 0 0-2.45.9l-.22.38a2 2 0 0 0 .45 2.55l1 .84a8 8 0 0 0 0 2l-1 .84a2 2 0 0 0-.45 2.55l.22.38a2 2 0 0 0 2.45.9l1.2-.48a8 8 0 0 0 1.73 1l.18 1.26A2 2 0 0 0 11.78 22h.44a2 2 0 0 0 2-1.72l.18-1.26a8 8 0 0 0 1.73-1l1.2.48a2 2 0 0 0 2.45-.9l.22-.38a2 2 0 0 0-.45-2.55l-1-.84a8 8 0 0 0 0-2l1-.84a2 2 0 0 0 .45-2.55l-.22-.38a2 2 0 0 0-2.45-.9l-1.2.48a8 8 0 0 0-1.73-1l-.18-1.26A2 2 0 0 0 12.22 2z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
 export default function Layout() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -55,6 +69,7 @@ export default function Layout() {
     { to: "/new", label: "New chat", icon: <AddUserIcon /> },
     { to: "/requests", label: "Requests", icon: <BellIcon /> },
     { to: "/groups", label: "Groups", icon: <GroupIcon /> },
+    { to: "/settings", label: "Settings", icon: <SettingsIcon /> },
   ];
 
   return (
@@ -80,7 +95,7 @@ export default function Layout() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="sidebar-user">{user?.username}</div>
+         
           <Link to="/profile" className="sidebar-user" style={{ textDecoration: "none" }}>
   {user?.username}
 </Link>
