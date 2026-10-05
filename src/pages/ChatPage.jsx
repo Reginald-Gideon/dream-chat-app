@@ -8,10 +8,6 @@ function formatTime(timestamp) {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function getInitials(name) {
-  return name ? name.slice(0, 2).toUpperCase() : "?";
-}
-
 export default function ChatPage() {
   const { conversationId } = useParams();
   const [messages, setMessages] = useState([]);
