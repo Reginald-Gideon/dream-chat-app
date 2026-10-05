@@ -575,7 +575,7 @@ app.delete('/api/groups/messages/:messageId', authMiddleware, async (req, res) =
   }
 });
 // Adding profile
-app.patch('api/users/avatar',authMiddleware, async (req,res)=>{
+app.patch('/api/users/avatar',authMiddleware, async (req,res)=>{
   const {avatar} = req.body
 
 if(!avatar){
