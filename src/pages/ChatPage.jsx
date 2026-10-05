@@ -21,11 +21,11 @@ const typingTimeoutRef = useRef(null);
 const socketRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const user = JSON.parse(localStorage.getItem("user"));
+  const token = localStorage.getItem("token");
 const otherMessage = messages.find((m) => m.username !== user?.username);
 const otherPerson = otherMessage?.username;
 const otherAvatar = otherMessage?.avatar;
-  const user = JSON.parse(localStorage.getItem("user"));
-  const token = localStorage.getItem("token");
 
   
 
