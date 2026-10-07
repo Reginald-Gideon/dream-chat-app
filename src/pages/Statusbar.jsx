@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { resizeImage } from "../resizeImage";
 import "../css/StatusBar.css";
 
@@ -23,7 +23,7 @@ export default function StatusBar() {
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
 
-  async function fetchStatuses() {
+  const fetchStatuses = useCallback(async () => {
     try {
       const response = await fetch("https://dream-chat-app-1.onrender.com/api/statuses", {
         headers: { Authorization: `Bearer ${token}` },
@@ -32,11 +32,11 @@ export default function StatusBar() {
     } catch {
       // non-critical
     }
-  }
+  }, [token]);
 
   useEffect(() => {
     fetchStatuses();
-  }, []);
+  }, [fetchStatuses]);
 
   // group flat status list by user, most recent first within each group
   const grouped = statuses.reduce((acc, s) => {
