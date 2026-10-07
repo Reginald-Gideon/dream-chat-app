@@ -5,10 +5,10 @@
   --blue-deep: #1D4ED8;
   --blue-light: #DBEAFE;
   --blue-pale: #EFF6FF;
-  --ink: #111827;
-  --gray-neutral: #6B7280;
-  --border-subtle: #E5E7EB;
-  --bg-page: #F7F8FA;
+  --ink: #F3F4F6;
+  --gray-neutral: #9CA3AF;
+  --border-subtle: #27272A;
+  --bg-page: #0A0A0A;
 }
 
 * {
@@ -22,7 +22,7 @@ html, body {
 
 .app-layout {
   min-height: 100vh;
-  background: var(--bg-page);
+  background: #0A0A0A;
   font-family: "Inter", sans-serif;
   color: var(--ink);
 }
@@ -30,7 +30,7 @@ html, body {
 /* --- Sidebar (desktop) --- */
 .app-sidebar {
   width: 240px;
-  background: #ffffff;
+  background: #18181B;
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -88,7 +88,7 @@ html, body {
 }
 
 .sidebar-link:hover {
-  background: var(--blue-pale);
+  background: rgba(37, 99, 235, 0.15);
   color: var(--ink);
 }
 
@@ -126,7 +126,7 @@ html, body {
 }
 
 .sidebar-logout:hover {
-  background: #FEF2F2;
+  background: rgba(220, 38, 38, 0.15);
   color: #DC2626;
 }
 
@@ -162,7 +162,7 @@ html, body {
     left: 0;
     right: 0;
     height: 60px;
-    background: #ffffff;
+    background: #18181B;
     border-top: 1px solid var(--border-subtle);
     z-index: 50;
   }

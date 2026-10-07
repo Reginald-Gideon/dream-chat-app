@@ -14,6 +14,7 @@ import GroupsPage from './pages/GroupsPage';
 import GroupChatPage from './pages/GroupChatPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
+import Feed from './pages/Feed.jsx'
 function App() {
   return (
     <BrowserRouter>
@@ -22,6 +23,8 @@ function App() {
   <Route path="/signup" element={<SignupPage />} />
 
   <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+  <Route path="/feed" element={<Feed/> }/>
+
 <Route path='/settings' element={<SettingsPage />} />
 <Route path="/profile" element={<ProfilePage />} />
 <Route path="/create-group" element={<CreateGroup />} />

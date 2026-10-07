@@ -660,6 +660,91 @@ app.patch('/api/users/password', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+
+//ADDING POSTS
+app.post('api/posts', authMiddleware, async (req,res)=>{
+  const {caption,imageUrl} = req.body;
+  try{
+    const result = await pool.query(
+      `INSERT INTO posts (user_id, caption, image_url)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+        [req.userId, caption, imageUrl]
+    )
+    res.status(201).json(result.rows[0]);
+   
+  } catch (err) {
+    console.error('Create post error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+//GETTING POSTS
+app.get('api/posts', authMiddleware, async (req,res)=>{
+  try{
+    const result = await pool.query(
+      `SELECT p.is, p.caption,p.image_url,p.created_at,
+      u.id AS user_id, u.username, u.avatar
+      COUNT (DISTINCT pl.user_id) AS like_count,
+      COUNT (DISTINCT c.id) AS comment_count,
+      BOOL_OR(pl.user_id = $1) AS liked_by_me
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      LEFT JOIN post_likes pl ON p.id = pl.post_id
+      LEFT JOIN comments c ON p.id = c.post_id
+      WHERE p.user_id =$1 OR p.user_id IN (
+      SELECT CASE WHEN requester id =$1 THEN addressee_id ELSE requester_id END
+      from friendships
+      WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'
+      )
+      GROUP BY p.id, u.id
+      ORDER BY p.created_at DESC`,
+      [req.userId]
+    )
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get posts error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+})
+//adding a comment to a post
+// Add a comment
+app.post('/api/posts/:postId/comments', authMiddleware, async (req, res) => {
+  const { postId } = req.params;
+  const { content } = req.body;
+  if (!content || !content.trim()) {
+    return res.status(400).json({ message: 'Comment cannot be empty.' });
+  }
+  try {
+    const result = await pool.query(
+      `INSERT INTO post_comments (post_id, user_id, content) VALUES ($1, $2, $3) RETURNING *`,
+      [postId, req.userId, content]
+    );
+    const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [req.userId]);
+    res.status(201).json({ ...result.rows[0], username: userResult.rows[0].username });
+  } catch (err) {
+    console.error('Add comment error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Get comments for a post
+app.get('/api/posts/:postId/comments', authMiddleware, async (req, res) => {
+  const { postId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT pc.id, pc.content, pc.created_at, u.username
+       FROM post_comments pc
+       JOIN users u ON pc.user_id = u.id
+       WHERE pc.post_id = $1
+       ORDER BY pc.created_at ASC`,
+      [postId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get comments error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 // --- SOCKET.IO SETUP ---
 
 const server = http.createServer(app);

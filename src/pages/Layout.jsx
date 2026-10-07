@@ -54,6 +54,22 @@ const SettingsIcon = () => (
     <circle cx="12" cy="12" r="3" />
   </svg>
 );
+const FeedIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="m3 10 9-7 9 7" />
+    <path d="M5 9v12h14V9" />
+    <path d="M9 21v-7h6v7" />
+  </svg>
+);
 export default function Layout() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
@@ -65,18 +81,20 @@ export default function Layout() {
   }
 
   const navItems = [
+     { to: "/feed", label: "Feed", icon: <FeedIcon /> },
     { to: "/inbox", label: "Messages", icon: <ChatIcon /> },
     { to: "/new", label: "New chat", icon: <AddUserIcon /> },
     { to: "/requests", label: "Requests", icon: <BellIcon /> },
     { to: "/groups", label: "Groups", icon: <GroupIcon /> },
     { to: "/settings", label: "Settings", icon: <SettingsIcon /> },
+   
   ];
 
   return (
     <div className="app-layout">
       <aside className="app-sidebar">
         <div className="sidebar-brand">
-         <Avatar src={user?.avatar} name={user?.username} className="sidebar-brand-icon" />
+         
           <span className="sidebar-brand-name">Ghostface</span>
         </div>
 
@@ -95,7 +113,7 @@ export default function Layout() {
         </nav>
 
         <div className="sidebar-footer">
-         
+         <Avatar src={user?.avatar} name={user?.username} className="sidebar-brand-icon" />
           <Link to="/profile" className="sidebar-user" style={{ textDecoration: "none" }}>
   {user?.username}
 </Link>
@@ -120,6 +138,7 @@ export default function Layout() {
             {item.icon}
           </NavLink>
         ))}
+        
         <button onClick={handleLogout} className="tabbar-link">
           <LogoutIcon />
         </button>

@@ -5,10 +5,10 @@
   --blue-deep: #1D4ED8;
   --blue-light: #DBEAFE;
   --blue-pale: #EFF6FF;
-  --ink: #111827;
+  --ink: #F3F4F6;
   --slate-accent: #2D608B;
-  --gray-neutral: #6B7280;
-  --border-subtle: #E5E7EB;
+  --gray-neutral: #9CA3AF;
+  --border-subtle: #27272A;
 }
 
 .login-page {
@@ -16,7 +16,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #F7F8FA;
+  background: #0A0A0A;
   font-family: "Inter", sans-serif;
   padding: 24px;
   box-sizing: border-box;
@@ -25,7 +25,7 @@
 .login-card {
   width: 100%;
   max-width: 400px;
-  background: #ffffff;
+  background: #18181B;
   border: 1px solid var(--border-subtle);
   border-radius: 24px;
   padding: 40px 36px;
@@ -108,7 +108,7 @@
 }
 
 .login-input:focus {
-  background: #ffffff;
+  background: #18181B;
   border-color: var(--blue-primary);
   box-shadow: 0 0 0 4px rgba(73, 170, 255, 0.15);
 }

@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import Avatar from "../components/Avatar";
 import "../css/NewChat.css";
-
-function getInitials(name) {
-  return name ? name.slice(0, 2).toUpperCase() : "?";
-}
 
 export default function UserListPage() {
   const [users, setUsers] = useState([]);
@@ -88,20 +85,40 @@ export default function UserListPage() {
 
   return (
     <div className="newchat-page">
-      <h1 className="newchat-title">Add friends</h1>
-      <p className="newchat-subtitle">Send a request — once accepted, you can start chatting.</p>
+      <h1 className="newchat-title">New chat</h1>
+      <p className="newchat-subtitle">Message a friend or start a group.</p>
 
       <div className="newchat-search">
         <span>🔍</span>
         <input
           type="text"
-          placeholder="Search people"
+          placeholder="Search name or username"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
       {error && <p className="newchat-error">{error}</p>}
+
+      {/* Shortcut tiles, like the reference's New group / Invite friends rows */}
+      <ul className="newchat-list" style={{ marginBottom: 20 }}>
+        <li>
+          <Link to="/create-group" className="newchat-row newchat-shortcut">
+            <div className="newchat-shortcut-icon group">👥</div>
+            <div className="newchat-row-name">New group</div>
+            <span className="newchat-row-arrow">→</span>
+          </Link>
+        </li>
+        <li>
+          <Link to="/groups" className="newchat-row newchat-shortcut">
+            <div className="newchat-shortcut-icon groups-list">📋</div>
+            <div className="newchat-row-name">My groups</div>
+            <span className="newchat-row-arrow">→</span>
+          </Link>
+        </li>
+      </ul>
+
+      <p className="newchat-section-label">Friends on the app</p>
 
       {filtered.length === 0 && !error && (
         <p className="newchat-empty">
@@ -117,14 +134,10 @@ export default function UserListPage() {
           return (
             <li key={u.id}>
               <div className="newchat-row">
-                <div className="newchat-avatar">{getInitials(u.username)}</div>
+                <Avatar src={u.avatar} name={u.username} className="newchat-avatar" />
                 <div className="newchat-row-name">{u.username}</div>
                 {isFriend ? (
-                  <button
-                    className="newchat-status friend"
-                    style={{ border: "none", cursor: "pointer" }}
-                    onClick={() => openConversation(u.id)}
-                  >
+                  <button className="newchat-status friend" onClick={() => openConversation(u.id)}>
                     Message
                   </button>
                 ) : requestSent ? (

@@ -18,7 +18,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #ffffff;
+  background: #18181B;
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
   padding: 10px 16px;
@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #ffffff;
+  background: #18181B;
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 12px 14px;
@@ -139,4 +139,8 @@
     height: 38px;
     min-width: 38px;
   }
+}
+
+.avatar-img {
+  object-fit: cover;
 }
