@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { resizeImage } from "../resizeImage";
 import "../css/Feed.css";
-
+import StatusBar from "./Statusbar.jsx";
 function Icon({ name, size = 24, filled = false }) {
   const common = {
     width: size,
@@ -198,6 +198,9 @@ export default function Feed() {
   return (
     <main className="feed-page">
       <div className="feed-layout">
+        <section className="stories-panel">
+  <StatusBar />
+</section>
         <section className="feed-main" aria-label="Feed">
           {/* --- New post composer --- */}
           <section className="stories-panel">

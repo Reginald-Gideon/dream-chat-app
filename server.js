@@ -766,6 +766,70 @@ app.get('/api/posts/:postId/comments', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+// Create a status
+app.post('/api/statuses', authMiddleware, async (req, res) => {
+  const { content, imageUrl, backgroundColor } = req.body;
+  if (!content && !imageUrl) {
+    return res.status(400).json({ message: 'Status needs text or an image.' });
+  }
+  try {
+    const result = await pool.query(
+      `INSERT INTO statuses (user_id, content, image_url, background_color)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.userId, content || null, imageUrl || null, backgroundColor || '#4C3BCF']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Create status error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Get active statuses from me + my friends, grouped by user
+app.get('/api/statuses', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT s.id, s.content, s.image_url, s.background_color, s.created_at,
+              u.id AS user_id, u.username, u.avatar,
+              EXISTS (
+                SELECT 1 FROM status_views sv WHERE sv.status_id = s.id AND sv.viewer_id = $1
+              ) AS viewed_by_me
+       FROM statuses s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.created_at > NOW() - INTERVAL '24 hours'
+         AND (
+           s.user_id = $1
+           OR s.user_id IN (
+             SELECT CASE WHEN requester_id = $1 THEN addressee_id ELSE requester_id END
+             FROM friendships
+             WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'
+           )
+         )
+       ORDER BY s.created_at DESC`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get statuses error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Mark a status as viewed
+app.post('/api/statuses/:statusId/view', authMiddleware, async (req, res) => {
+  const { statusId } = req.params;
+  try {
+    await pool.query(
+      `INSERT INTO status_views (status_id, viewer_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [statusId, req.userId]
+    );
+    res.status(200).json({ message: 'Marked as viewed.' });
+  } catch (err) {
+    console.error('Mark status viewed error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 // --- SOCKET.IO SETUP ---
 
 const server = http.createServer(app);
