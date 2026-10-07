@@ -661,52 +661,73 @@ app.patch('/api/users/password', authMiddleware, async (req, res) => {
   }
 });
 
-//ADDING POSTS
-app.post('api/posts', authMiddleware, async (req,res)=>{
-  const {caption,imageUrl} = req.body;
-  try{
+// Create a post
+app.post('/api/posts', authMiddleware, async (req, res) => {
+  const { caption, imageUrl } = req.body;
+  try {
     const result = await pool.query(
-      `INSERT INTO posts (user_id, caption, image_url)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-        [req.userId, caption, imageUrl]
-    )
+      `INSERT INTO posts (user_id, caption, image_url) VALUES ($1, $2, $3) RETURNING *`,
+      [req.userId, caption || null, imageUrl || null]
+    );
     res.status(201).json(result.rows[0]);
-   
   } catch (err) {
     console.error('Create post error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
-//GETTING POSTS
-app.get('api/posts', authMiddleware, async (req,res)=>{
-  try{
+
+// Feed: posts from your friends and yourself, newest first, with like/comment counts
+app.get('/api/posts', authMiddleware, async (req, res) => {
+  try {
     const result = await pool.query(
-      `SELECT p.is, p.caption,p.image_url,p.created_at,
-      u.id AS user_id, u.username, u.avatar
-      COUNT (DISTINCT pl.user_id) AS like_count,
-      COUNT (DISTINCT c.id) AS comment_count,
-      BOOL_OR(pl.user_id = $1) AS liked_by_me
-      FROM posts p
-      JOIN users u ON p.user_id = u.id
-      LEFT JOIN post_likes pl ON p.id = pl.post_id
-      LEFT JOIN comments c ON p.id = c.post_id
-      WHERE p.user_id =$1 OR p.user_id IN (
-      SELECT CASE WHEN requester id =$1 THEN addressee_id ELSE requester_id END
-      from friendships
-      WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'
-      )
-      GROUP BY p.id, u.id
-      ORDER BY p.created_at DESC`,
+      `SELECT 
+         p.id, p.caption, p.image_url, p.created_at,
+         u.id AS user_id, u.username, u.avatar,
+         COUNT(DISTINCT pl.user_id) AS like_count,
+         COUNT(DISTINCT pc.id) AS comment_count,
+         BOOL_OR(pl.user_id = $1) AS liked_by_me
+       FROM posts p
+       JOIN users u ON p.user_id = u.id
+       LEFT JOIN post_likes pl ON pl.post_id = p.id
+       LEFT JOIN post_comments pc ON pc.post_id = p.id
+       WHERE p.user_id = $1
+          OR p.user_id IN (
+            SELECT CASE WHEN requester_id = $1 THEN addressee_id ELSE requester_id END
+            FROM friendships
+            WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'
+          )
+       GROUP BY p.id, u.id
+       ORDER BY p.created_at DESC`,
       [req.userId]
-    )
+    );
     res.json(result.rows);
   } catch (err) {
-    console.error('Get posts error:', err);
+    console.error('Get feed error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
-})
-//adding a comment to a post
+});
+
+// Like / unlike (toggle)
+app.post('/api/posts/:postId/like', authMiddleware, async (req, res) => {
+  const { postId } = req.params;
+  try {
+    const existing = await pool.query(
+      `SELECT * FROM post_likes WHERE post_id = $1 AND user_id = $2`,
+      [postId, req.userId]
+    );
+    if (existing.rows.length > 0) {
+      await pool.query(`DELETE FROM post_likes WHERE post_id = $1 AND user_id = $2`, [postId, req.userId]);
+      return res.json({ liked: false });
+    } else {
+      await pool.query(`INSERT INTO post_likes (post_id, user_id) VALUES ($1, $2)`, [postId, req.userId]);
+      return res.json({ liked: true });
+    }
+  } catch (err) {
+    console.error('Toggle like error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
 // Add a comment
 app.post('/api/posts/:postId/comments', authMiddleware, async (req, res) => {
   const { postId } = req.params;
