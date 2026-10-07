@@ -198,9 +198,6 @@ export default function Feed() {
   return (
     <main className="feed-page">
       <div className="feed-layout">
-        <section className="stories-panel">
-  <StatusBar />
-</section>
         <section className="feed-main" aria-label="Feed">
           {/* --- New post composer --- */}
           <section className="stories-panel">
@@ -357,6 +354,10 @@ export default function Feed() {
         </section>
 
         <aside className="feed-rail" aria-label="Your account">
+          <section className="stories-panel feed-stories" aria-label="Stories">
+            <StatusBar />
+          </section>
+
           <div className="current-account">
             <Avatar src={user?.avatar} name={user?.username} className="post-avatar" style={{ width: 43, height: 43 }} />
             <div className="account-copy">
