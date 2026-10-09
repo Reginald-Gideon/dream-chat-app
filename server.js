@@ -158,7 +158,6 @@ app.post('/api/friends/request', authMiddleware, async (req, res) => {
   if (addresseeId === req.userId) return res.status(400).json({ message: "You can't friend yourself." });
 
   try {
-    // check if a friendship already exists in either direction
     const existing = await pool.query(
       `SELECT * FROM friendships
        WHERE (requester_id = $1 AND addressee_id = $2)
@@ -175,7 +174,15 @@ app.post('/api/friends/request', authMiddleware, async (req, res) => {
       [req.userId, addresseeId]
     );
 
-    io.to(`user:${addresseeId}`).emit('friendRequestReceived', result.rows[0]);
+    const notif = await pool.query(
+      `INSERT INTO notifications (user_id, actor_id, type)
+       VALUES ($1, $2, 'friend_request') RETURNING *`,
+      [addresseeId, req.userId]
+    );
+
+    io.to(`user:${addresseeId}`).emit('newNotification', notif.rows[0]);
+    io.to(`user:${addresseeId}`).emit('friendRequestReceived', result.rows[0]); // keep this too, Requests page still needs it
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Friend request error:', err);
@@ -718,10 +725,26 @@ app.post('/api/posts/:postId/like', authMiddleware, async (req, res) => {
     if (existing.rows.length > 0) {
       await pool.query(`DELETE FROM post_likes WHERE post_id = $1 AND user_id = $2`, [postId, req.userId]);
       return res.json({ liked: false });
-    } else {
-      await pool.query(`INSERT INTO post_likes (post_id, user_id) VALUES ($1, $2)`, [postId, req.userId]);
-      return res.json({ liked: true });
     }
+
+    await pool.query(`INSERT INTO post_likes (post_id, user_id) VALUES ($1, $2)`, [postId, req.userId]);
+
+    // find out who owns this post, so we know who to notify
+    const postResult = await pool.query('SELECT user_id FROM posts WHERE id = $1', [postId]);
+    const postOwnerId = postResult.rows[0]?.user_id;
+
+    // don't notify yourself if you like your own post
+    if (postOwnerId && postOwnerId !== req.userId) {
+      const notif = await pool.query(
+        `INSERT INTO notifications (user_id, actor_id, type, post_id)
+         VALUES ($1, $2, 'like', $3) RETURNING *`,
+        [postOwnerId, req.userId, postId]
+      );
+      // push it live, the same way we push new messages
+      io.to(`user:${postOwnerId}`).emit('newNotification', notif.rows[0]);
+    }
+
+    return res.json({ liked: true });
   } catch (err) {
     console.error('Toggle like error:', err);
     res.status(500).json({ message: 'Internal server error.' });
@@ -741,6 +764,19 @@ app.post('/api/posts/:postId/comments', authMiddleware, async (req, res) => {
       [postId, req.userId, content]
     );
     const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [req.userId]);
+
+    const postResult = await pool.query('SELECT user_id FROM posts WHERE id = $1', [postId]);
+    const postOwnerId = postResult.rows[0]?.user_id;
+
+    if (postOwnerId && postOwnerId !== req.userId) {
+      const notif = await pool.query(
+        `INSERT INTO notifications (user_id, actor_id, type, post_id)
+         VALUES ($1, $2, 'comment', $3) RETURNING *`,
+        [postOwnerId, req.userId, postId]
+      );
+      io.to(`user:${postOwnerId}`).emit('newNotification', notif.rows[0]);
+    }
+
     res.status(201).json({ ...result.rows[0], username: userResult.rows[0].username });
   } catch (err) {
     console.error('Add comment error:', err);
@@ -827,6 +863,35 @@ app.post('/api/statuses/:statusId/view', authMiddleware, async (req, res) => {
     res.status(200).json({ message: 'Marked as viewed.' });
   } catch (err) {
     console.error('Mark status viewed error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+//notifications
+app.get('/api/notifications', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT n.id, n.type, n.read, n.created_at, n.post_id,
+              u.id AS actor_id, u.username AS actor_username, u.avatar AS actor_avatar
+       FROM notifications n
+       JOIN users u ON n.actor_id = u.id
+       WHERE n.user_id = $1
+       ORDER BY n.created_at DESC
+       LIMIT 50`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get notifications error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.patch('/api/notifications/read', authMiddleware, async (req, res) => {
+  try {
+    await pool.query(`UPDATE notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE`, [req.userId]);
+    res.status(200).json({ message: 'Marked all as read.' });
+  } catch (err) {
+    console.error('Mark notifications read error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
