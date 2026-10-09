@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate, Link } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
 import "../css/Layout.css";
 import Avatar from "../components/Avatar";
 const ChatIcon = () => (
@@ -72,7 +73,32 @@ const FeedIcon = () => (
 );
 export default function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user"));
+  const token = localStorage.getItem("token");
+  const [unreadCounts, setUnreadCounts] = useState({ messages: 0, notifications: 0 });
+
+  const refreshUnreadCounts = useCallback(async () => {
+    try {
+      const response = await fetch("https://dream-chat-app-1.onrender.com/api/unread-counts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return;
+      const counts = await response.json();
+      setUnreadCounts({
+        messages: Number(counts.messages) || 0,
+        notifications: Number(counts.notifications) || 0,
+      });
+    } catch {
+      // Keep the last known counts when the API is temporarily unavailable.
+    }
+  }, [token]);
+
+  useEffect(() => {
+    refreshUnreadCounts();
+    const intervalId = setInterval(refreshUnreadCounts, 20000);
+    return () => clearInterval(intervalId);
+  }, [location.pathname, refreshUnreadCounts]);
 
   function handleLogout() {
     localStorage.removeItem("token");
@@ -82,13 +108,19 @@ export default function Layout() {
 
   const navItems = [
      { to: "/feed", label: "Feed", icon: <FeedIcon /> },
-    { to: "/inbox", label: "Messages", icon: <ChatIcon /> },
+    { to: "/inbox", label: "Messages", icon: <ChatIcon />, unreadKey: "messages" },
     { to: "/new", label: "New chat", icon: <AddUserIcon /> },
     { to: "/requests", label: "Requests", icon: <BellIcon /> },
+    { to: "/notifications", label: "Notifications", icon: <BellIcon />, unreadKey: "notifications" },
     { to: "/groups", label: "Groups", icon: <GroupIcon /> },
     { to: "/settings", label: "Settings", icon: <SettingsIcon /> },
    
   ];
+
+  function renderBadge(count, className) {
+    if (!count) return null;
+    return <span className={className}>{count > 99 ? "99+" : count}</span>;
+  }
 
   return (
     <div className="app-layout">
@@ -108,15 +140,16 @@ export default function Layout() {
             >
               {item.icon}
               <span>{item.label}</span>
+              {item.unreadKey && renderBadge(unreadCounts[item.unreadKey], "nav-badge")}
             </NavLink>
           ))}
         </nav>
 
         <div className="sidebar-footer">
-         <Avatar src={user?.avatar} name={user?.username} className="sidebar-brand-icon" />
-          <Link to="/profile" className="sidebar-user" style={{ textDecoration: "none" }}>
-  {user?.username}
-</Link>
+          <Link to="/profile" className="sidebar-user">
+            <Avatar src={user?.avatar} name={user?.username} className="sidebar-user-avatar" />
+            <span>{user?.username || "Profile"}</span>
+          </Link>
           <button onClick={handleLogout} className="sidebar-logout">
             <LogoutIcon />
             <span>Log out</span>
@@ -125,7 +158,7 @@ export default function Layout() {
       </aside>
 
       <div className="app-content">
-        <Outlet />
+        <Outlet context={{ refreshUnreadCounts }} />
       </div>
 
       <nav className="mobile-tabbar">
@@ -133,9 +166,11 @@ export default function Layout() {
           <NavLink
             key={item.to}
             to={item.to}
+            aria-label={item.label}
             className={({ isActive }) => (isActive ? "tabbar-link active" : "tabbar-link")}
           >
             {item.icon}
+            {item.unreadKey && renderBadge(unreadCounts[item.unreadKey], "tabbar-badge")}
           </NavLink>
         ))}
         

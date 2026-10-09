@@ -15,6 +15,7 @@ import GroupChatPage from './pages/GroupChatPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import Feed from './pages/Feed.jsx'
+import NotificationsPage from './pages/NotificationsPage';
 function App() {
   return (
     <BrowserRouter>
@@ -24,6 +25,7 @@ function App() {
 
   <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
   <Route path="/feed" element={<Feed/> }/>
+  <Route path="/notifications" element={<NotificationsPage />} />
 
 <Route path='/settings' element={<SettingsPage />} />
 <Route path="/profile" element={<ProfilePage />} />

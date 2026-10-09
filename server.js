@@ -866,6 +866,36 @@ app.post('/api/statuses/:statusId/view', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+app.get('/api/unread-counts', authMiddleware, async (req, res) => {
+  try {
+    const [messages, notifications] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS count
+         FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         WHERE m.read_at IS NULL
+           AND m.user_id != $1
+           AND (c.user_one_id = $1 OR c.user_two_id = $1)`,
+        [req.userId]
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS count
+         FROM notifications
+         WHERE user_id = $1 AND read = FALSE`,
+        [req.userId]
+      ),
+    ]);
+
+    res.json({
+      messages: messages.rows[0].count,
+      notifications: notifications.rows[0].count,
+    });
+  } catch (err) {
+    console.error('Get unread counts error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
 //notifications
 app.get('/api/notifications', authMiddleware, async (req, res) => {
   try {

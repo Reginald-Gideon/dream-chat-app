@@ -75,6 +75,7 @@ html, body {
 }
 
 .sidebar-link {
+	position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -85,6 +86,26 @@ html, body {
   font-size: 14px;
   font-weight: 500;
   transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-badge,
+.tabbar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: #e54862;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.nav-badge {
+  min-width: 19px;
+  height: 19px;
+  margin-left: auto;
+  padding: 0 5px;
 }
 
 .sidebar-link:hover {
@@ -104,10 +125,32 @@ html, body {
 }
 
 .sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
-  padding: 0 12px 10px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 9px;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.sidebar-user:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.sidebar-user-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--blue-primary);
+  color: #fff;
+  font-size: 12px;
 }
 
 .sidebar-logout {
@@ -168,6 +211,9 @@ html, body {
   }
 
   .tabbar-link {
+    position: relative;
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -178,6 +224,16 @@ html, body {
     background: transparent;
     border: none;
     cursor: pointer;
+  }
+
+  .tabbar-badge {
+    position: absolute;
+    top: 0;
+    right: calc(50% - 21px);
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border: 2px solid #18181b;
   }
 
   .tabbar-link.active {
