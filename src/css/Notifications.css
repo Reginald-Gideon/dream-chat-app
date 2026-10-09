@@ -15,7 +15,7 @@
 
 .notifications-eyebrow {
   margin: 0 0 7px;
-  color: #60a5fa;
+  color: var(--accent-cool);
   font-size: 11px;
   font-weight: 700;
 }
@@ -38,7 +38,7 @@
   flex: 0 0 auto;
   padding: 9px 12px;
   color: var(--ink);
-  background: #18181b;
+  background: var(--surface-2);
   border: 1px solid var(--border-subtle);
   border-radius: 7px;
   font: inherit;
@@ -69,7 +69,7 @@
 
 .notifications-list {
   overflow: hidden;
-  background: #151518;
+  background: var(--surface-1);
   border: 1px solid var(--border-subtle);
   border-radius: 11px;
 }
@@ -105,7 +105,7 @@
 }
 
 .notification-unread {
-  background: rgba(37, 99, 235, 0.09);
+  background: rgba(52, 127, 229, 0.1);
 }
 
 .notification-avatar {
@@ -117,7 +117,7 @@
   justify-content: center;
   overflow: hidden;
   color: #fff;
-  background: #2563eb;
+  background: var(--blue-primary);
   border-radius: 50%;
   font-size: 13px;
   font-weight: 700;
@@ -147,7 +147,7 @@
   width: 8px;
   height: 8px;
   flex: 0 0 8px;
-  background: #3b82f6;
+  background: var(--accent-cool);
   border-radius: 50%;
 }
 

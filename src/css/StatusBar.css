@@ -26,11 +26,11 @@
   height: 58px;
   padding: 3px;
   border-radius: 50%;
-  background: #45454c;
+  background: var(--surface-3);
 }
 
 .status-ring-fresh {
-  background: conic-gradient(from 215deg, #e7a13c, #cf486c, #7c55b5, #e7a13c);
+  background: conic-gradient(from 215deg, #31b487, #347fe5, #75baff, #31b487);
 }
 
 .status-ring img,
@@ -39,7 +39,7 @@
   height: 100%;
   display: block;
   object-fit: cover;
-  border: 2px solid #1a1a1e;
+  border: 2px solid var(--surface-1);
   border-radius: 50%;
 }
 
@@ -47,7 +47,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #2563EB;
+  background: var(--blue-primary);
   color: #fff;
   font-size: 15px;
   font-weight: 700;
@@ -62,8 +62,8 @@
   display: grid;
   place-items: center;
   color: #fff;
-  background: #2563EB;
-  border: 2px solid #1a1a1e;
+  background: var(--blue-primary);
+  border: 2px solid var(--surface-1);
   border-radius: 50%;
   font-size: 13px;
   font-weight: 700;
@@ -96,7 +96,7 @@
   height: min(85vh, 680px);
   border-radius: 16px;
   overflow: hidden;
-  background: #111;
+  background: var(--surface-1);
 }
 
 .status-viewer-bars {

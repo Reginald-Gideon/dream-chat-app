@@ -1,5 +1,5 @@
 .newchat-page {
-  max-width: 640px;
+  max-width: 760px;
   width: 100%;
   margin: 0 auto;
   padding: 24px;
@@ -24,9 +24,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #18181B;
+  background: var(--surface-2);
   border: 1px solid var(--border-subtle);
-  border-radius: 999px;
+  border-radius: 9px;
   padding: 10px 16px;
   margin-bottom: 18px;
 }
@@ -72,9 +72,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #18181B;
+  background: var(--surface-2);
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+  border-radius: 11px;
   padding: 12px 14px;
   cursor: pointer;
   text-align: left;
@@ -92,8 +92,8 @@
   height: 42px;
   min-width: 42px;
   border-radius: 50%;
-  background: var(--blue-light);
-  color: var(--blue-deep);
+  background: var(--surface-3);
+  color: var(--accent-cool);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,22 +122,22 @@
 }
 
 .newchat-status.friend {
-  color: #1D4ED8;
-  background: rgba(37, 99, 235, 0.15);
+  color: var(--accent-cool);
+  background: rgba(52, 127, 229, 0.15);
 }
 
 .newchat-status.pending {
   color: var(--gray-neutral);
-  background: #F1F4F8;
+  background: var(--surface-3);
 }
 
 .newchat-add-button {
-  background: linear-gradient(135deg, var(--blue-primary), var(--blue-deep));
+  background: var(--blue-primary);
   color: #ffffff;
   font-weight: 600;
   font-size: 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 7px 16px;
   cursor: pointer;
 }
@@ -190,7 +190,7 @@
 }
 
 .newchat-shortcut-icon.groups-list {
-  background: #7C3AED;
+  background: var(--surface-3);
 }
 
 .newchat-section-label {

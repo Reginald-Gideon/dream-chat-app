@@ -108,7 +108,7 @@ export default function Layout() {
 
   const navItems = [
      { to: "/feed", label: "Feed", icon: <FeedIcon /> },
-    { to: "/inbox", label: "Messages", icon: <ChatIcon />, unreadKey: "messages" },
+    { to: "/chat", label: "Messages", icon: <ChatIcon />, unreadKey: "messages" },
     { to: "/new", label: "New chat", icon: <AddUserIcon /> },
     { to: "/requests", label: "Requests", icon: <BellIcon /> },
     { to: "/notifications", label: "Notifications", icon: <BellIcon />, unreadKey: "notifications" },
@@ -126,8 +126,7 @@ export default function Layout() {
     <div className="app-layout">
       <aside className="app-sidebar">
         <div className="sidebar-brand">
-         
-          <span className="sidebar-brand-name">Ghostface</span>
+          <span className="sidebar-brand-name" title="Morphues" aria-label="Morphues">M</span>
         </div>
 
         <nav className="sidebar-nav">
@@ -136,6 +135,8 @@ export default function Layout() {
             <NavLink
               key={item.to}
               to={item.to}
+              title={item.label}
+              aria-label={item.label}
               className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}
             >
               {item.icon}
@@ -150,7 +151,7 @@ export default function Layout() {
             <Avatar src={user?.avatar} name={user?.username} className="sidebar-user-avatar" />
             <span>{user?.username || "Profile"}</span>
           </Link>
-          <button onClick={handleLogout} className="sidebar-logout">
+          <button onClick={handleLogout} className="sidebar-logout" title="Log out" aria-label="Log out">
             <LogoutIcon />
             <span>Log out</span>
           </button>

@@ -1,13 +1,13 @@
 .feed-page {
-	--feed-ink: #f4f4f5;
-	--feed-muted: #a1a1aa;
-	--feed-line: #303036;
-	--feed-blue: #53b7e8;
+	--feed-ink: var(--ink);
+	--feed-muted: var(--gray-neutral);
+	--feed-line: var(--border-subtle);
+	--feed-blue: var(--accent-cool);
 	min-height: 100vh;
 	padding: 24px 34px 48px;
 	background:
 		radial-gradient(ellipse at 76% 4%, rgba(42, 57, 66, 0.42), transparent 32%),
-		#111113;
+		var(--page-bg);
 	color: var(--feed-ink);
 	font-family: "Inter", sans-serif;
 }
@@ -33,9 +33,9 @@
 .feed-post,
 .current-account,
 .suggestions-panel {
-	background: #1a1a1e;
+	background: var(--surface-1);
 	border: 1px solid var(--feed-line);
-	border-radius: 13px;
+	border-radius: 11px;
 	box-shadow: 0 5px 22px rgba(0, 0, 0, 0.16);
 }
 
@@ -95,11 +95,11 @@
 	height: 58px;
 	padding: 3px;
 	border-radius: 50%;
-	background: conic-gradient(from 215deg, #e7a13c, #cf486c, #7c55b5, #e7a13c);
+	background: conic-gradient(from 215deg, #31b487, #347fe5, #75baff, #31b487);
 }
 
 .story-ring:not(.story-ring-fresh) {
-	background: #45454c;
+	background: var(--surface-3);
 }
 
 .story-ring img {
@@ -107,7 +107,7 @@
 	height: 100%;
 	display: block;
 	object-fit: cover;
-	border: 2px solid #1a1a1e;
+	border: 2px solid var(--surface-1);
 	border-radius: 50%;
 }
 
@@ -120,8 +120,8 @@
 	display: grid;
 	place-items: center;
 	color: #fff;
-	background: #1687bd;
-	border: 2px solid #1a1a1e;
+	background: var(--blue-primary);
+	border: 2px solid var(--surface-1);
 	border-radius: 50%;
 }
 
@@ -240,7 +240,7 @@
 	aspect-ratio: 1.52 / 1;
 	display: block;
 	object-fit: cover;
-	background: #29292e;
+	background: var(--surface-3);
 }
 
 .post-details {
@@ -320,7 +320,7 @@
 .post-time {
 	display: block;
 	margin-top: 5px;
-	color: #85858d;
+	color: var(--feed-muted);
 	font-size: 9px;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
@@ -332,8 +332,8 @@
 	align-items: center;
 	gap: 8px;
 	margin-top: 7px;
-	border-top: 1px solid #303036;
-	color: #a1a1aa;
+	border-top: 1px solid var(--feed-line);
+	color: var(--feed-muted);
 	font-size: 12px;
 }
 
@@ -360,7 +360,7 @@
 }
 
 .comment-smile {
-	color: #a1a1aa;
+	color: var(--feed-muted);
 }
 
 .comment-submit {
@@ -494,7 +494,7 @@
 
 .feed-footer {
 	padding: 19px 10px 0;
-	color: #85858d;
+	color: var(--feed-muted);
 	font-size: 10px;
 	line-height: 1.8;
 }
@@ -536,7 +536,7 @@
 @media (max-width: 520px) {
 	.feed-page {
 		padding: 10px 0 20px;
-		background: #111113;
+		background: var(--page-bg);
 	}
 
 	.feed-layout {

@@ -108,13 +108,38 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'You must be friends to start a conversation.' });
     }
 
-    const created = await pool.query(
-      `INSERT INTO conversations (user_one_id, user_two_id)
-       VALUES ($1, $2)
-       RETURNING *`,
+    const existing = await pool.query(
+      `SELECT * FROM conversations
+       WHERE user_one_id = $1 AND user_two_id = $2
+       LIMIT 1`,
       [userOneId, userTwoId]
     );
-    res.status(201).json(created.rows[0]);
+    if (existing.rows.length > 0) {
+      return res.status(200).json(existing.rows[0]);
+    }
+
+    try {
+      const created = await pool.query(
+        `INSERT INTO conversations (user_one_id, user_two_id)
+         VALUES ($1, $2)
+         RETURNING *`,
+        [userOneId, userTwoId]
+      );
+      return res.status(201).json(created.rows[0]);
+    } catch (insertError) {
+      if (insertError.code !== '23505') throw insertError;
+
+      const createdByAnotherRequest = await pool.query(
+        `SELECT * FROM conversations
+         WHERE user_one_id = $1 AND user_two_id = $2
+         LIMIT 1`,
+        [userOneId, userTwoId]
+      );
+      if (createdByAnotherRequest.rows.length > 0) {
+        return res.status(200).json(createdByAnotherRequest.rows[0]);
+      }
+      throw insertError;
+    }
   } catch (err) {
     console.error('Conversation error:', err);
     res.status(500).json({ message: 'Internal server error.' });

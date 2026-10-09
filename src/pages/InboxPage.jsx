@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Inboxpage.css";
 import Avatar from "../components/Avatar";
@@ -10,12 +10,14 @@ export default function InboxPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [onlineUserIds, setOnlineUserIds] = useState([]);
+  const location = useLocation();
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
+  const showConversationList = new URLSearchParams(location.search).get("list") === "1";
 
   // Refresh periodically so new messages become visible while the inbox stays open.
   useEffect(() => {
-    async function fetchConversations() {
+    async function fetchConversations(openFirstConversation = false) {
       try {
         const response = await fetch("https://dream-chat-app-1.onrender.com/api/conversations", {
           headers: { Authorization: `Bearer ${token}` },
@@ -23,14 +25,17 @@ export default function InboxPage() {
         if (!response.ok) throw new Error("Failed to load conversations.");
         const data = await response.json();
         setConversations(data);
+        if (openFirstConversation && !showConversationList && data.length > 0) {
+          navigate(`/chat/${data[0].conversation_id}`, { replace: true });
+        }
       } catch (err) {
         setError(err.message);
       }
     }
-    fetchConversations();
-    const intervalId = window.setInterval(fetchConversations, 15000);
+    fetchConversations(true);
+    const intervalId = window.setInterval(() => fetchConversations(), 15000);
     return () => window.clearInterval(intervalId);
-  }, [token]);
+  }, [token, navigate, showConversationList]);
 
   // track who's online via socket.io
   useEffect(() => {

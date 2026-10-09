@@ -375,11 +375,7 @@ export default function Feed() {
         </section>
 
         <aside className="feed-rail" aria-label="Your account">
-          <section className="stories-panel feed-stories" aria-label="Stories">
-            <StatusBar />
-          </section>
-
-          <div className="current-account">
+              <div className="current-account">
             <Avatar src={user?.avatar} name={user?.username} className="post-avatar" style={{ width: 43, height: 43 }} />
             <div className="account-copy">
               <strong>@{user?.username}</strong>
@@ -387,6 +383,11 @@ export default function Feed() {
             </div>
           </div>
 
+          <section className="stories-panel feed-stories" aria-label="Stories">
+            <StatusBar />
+          </section>
+
+        
           <section className="suggestions-panel">
             <div className="suggestions-heading">
               <h2>Your friends</h2>
