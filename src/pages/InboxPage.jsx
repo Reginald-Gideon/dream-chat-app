@@ -13,7 +13,7 @@ export default function InboxPage() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  // fetch the list of conversations
+  // Refresh periodically so new messages become visible while the inbox stays open.
   useEffect(() => {
     async function fetchConversations() {
       try {
@@ -28,6 +28,8 @@ export default function InboxPage() {
       }
     }
     fetchConversations();
+    const intervalId = window.setInterval(fetchConversations, 15000);
+    return () => window.clearInterval(intervalId);
   }, [token]);
 
   // track who's online via socket.io
@@ -85,24 +87,38 @@ socket.on("connect_error", (err) => {
       )}
 
       <ul className="inbox-list">
-        {filtered.map((c) => (
+        {filtered.map((c) => {
+          const unreadCount = Number(c.unread_count) || 0;
+
+          return (
           <li key={c.conversation_id}>
-            <button className="inbox-row" onClick={() => navigate(`/chat/${c.conversation_id}`)}>
+            <button
+              className={`inbox-row${unreadCount ? " inbox-row-unread" : ""}`}
+              onClick={() => navigate(`/chat/${c.conversation_id}`)}
+            >
               <Avatar src={c.other_avatar} name={c.other_username} className="inbox-avatar" />
                 {onlineUserIds.includes(c.other_user_id) && <span className="online-dot" />}
               
               <div className="inbox-row-content">
                 <div className="inbox-row-name">{c.other_username}</div>
-                <div className="inbox-row-preview">{c.last_message || "No messages yet"}</div>
+                <div className={`inbox-row-preview${c.last_message_unread ? " inbox-row-preview-unread" : ""}`}>
+                  {c.last_message || "No messages yet"}
+                </div>
               </div>
               {c.last_message_at && (
                 <div className="inbox-row-time">
                   {new Date(c.last_message_at).toLocaleDateString([], { month: "short", day: "numeric" })}
                 </div>
               )}
+              {unreadCount > 0 && (
+                <span className="inbox-unread-count" aria-label={`${unreadCount} unread messages`}>
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </button>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </div>
   );

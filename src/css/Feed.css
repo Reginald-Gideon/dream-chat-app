@@ -146,6 +146,12 @@
 
 .feed-post {
 	overflow: hidden;
+	scroll-margin-top: 24px;
+}
+
+.feed-post-highlighted {
+	outline: 2px solid var(--feed-blue);
+	box-shadow: 0 0 0 5px rgba(83, 183, 232, 0.2);
 }
 
 .post-header {

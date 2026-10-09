@@ -75,12 +75,29 @@
 }
 
 .notification-row {
+  width: 100%;
   min-height: 76px;
   display: flex;
   align-items: center;
   gap: 13px;
   padding: 13px 16px;
+  color: inherit;
+  background: transparent;
+  border: 0;
   border-bottom: 1px solid var(--border-subtle);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notification-row:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.notification-row:focus-visible {
+  position: relative;
+  outline: 2px solid var(--blue-primary);
+  outline-offset: -2px;
 }
 
 .notification-row:last-child {

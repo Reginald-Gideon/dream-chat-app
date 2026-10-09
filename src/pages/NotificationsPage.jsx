@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import Avatar from "../components/Avatar";
 import "../css/Notifications.css";
 
@@ -27,6 +27,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [markingRead, setMarkingRead] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
   const token = localStorage.getItem("token");
   const { refreshUnreadCounts } = useOutletContext();
 
@@ -68,6 +69,35 @@ export default function NotificationsPage() {
     }
   }
 
+  async function openNotification(notification) {
+    if (!notification.read) {
+      try {
+        const response = await fetch(
+          `https://dream-chat-app-1.onrender.com/api/notifications/${notification.id}/read`,
+          {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!response.ok) throw new Error("Could not mark notification as read.");
+        setNotifications((current) =>
+          current.map((item) => item.id === notification.id ? { ...item, read: true } : item)
+        );
+        await refreshUnreadCounts();
+      } catch (openError) {
+        setError(openError.message);
+      }
+    }
+
+    if (notification.type === "friend_request") {
+      navigate("/requests");
+    } else if (notification.post_id) {
+      navigate(`/feed#post-${notification.post_id}`);
+    } else {
+      navigate("/feed");
+    }
+  }
+
   const hasUnread = notifications.some((notification) => !notification.read);
 
   return (
@@ -97,9 +127,11 @@ export default function NotificationsPage() {
           <p className="notifications-empty">You’re all caught up.</p>
         ) : (
           notifications.map((notification) => (
-            <article
+            <button
+              type="button"
               className={`notification-row${notification.read ? "" : " notification-unread"}`}
               key={notification.id}
+              onClick={() => openNotification(notification)}
             >
               <Avatar
                 src={notification.actor_avatar}
@@ -113,7 +145,7 @@ export default function NotificationsPage() {
                 {formatNotificationTime(notification.created_at)}
               </time>
               {!notification.read && <span className="notification-unread-dot" aria-label="Unread" />}
-            </article>
+            </button>
           ))
         )}
       </section>

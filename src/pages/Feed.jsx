@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { resizeImage } from "../resizeImage";
 import "../css/Feed.css";
 import StatusBar from "./Statusbar.jsx";
@@ -42,7 +43,9 @@ function Avatar({ src, name, className }) {
 }
 
 export default function Feed() {
+  const location = useLocation();
   const [posts, setPosts] = useState([]);
+  const [highlightedPostId, setHighlightedPostId] = useState(null);
   const [error, setError] = useState("");
   const [expandedComments, setExpandedComments] = useState({}); // { postId: [comments] }
   const [commentDraft, setCommentDraft] = useState({}); // { postId: text }
@@ -87,6 +90,20 @@ export default function Feed() {
     fetchFriends();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const match = location.hash.match(/^#post-(.+)$/);
+    if (!match || posts.length === 0) return;
+
+    const postId = match[1];
+    const postElement = document.getElementById(`feed-post-${postId}`);
+    if (!postElement) return;
+
+    setHighlightedPostId(postId);
+    postElement.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timeoutId = window.setTimeout(() => setHighlightedPostId(null), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [location.hash, posts.length]);
 
   async function toggleLike(postId) {
     // optimistic update
@@ -280,7 +297,11 @@ export default function Feed() {
               const comments = expandedComments[post.id];
 
               return (
-                <article className="feed-post" key={post.id}>
+                <article
+                  className={`feed-post${String(highlightedPostId) === String(post.id) ? " feed-post-highlighted" : ""}`}
+                  id={`feed-post-${post.id}`}
+                  key={post.id}
+                >
                   <header className="post-header">
                     <div className="post-author">
                       <Avatar src={post.avatar} name={post.username} className="post-avatar" />

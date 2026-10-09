@@ -80,6 +80,29 @@
   transform: translateY(-1px);
 }
 
+.inbox-row-unread {
+  border-color: rgba(59, 130, 246, 0.55);
+}
+
+.inbox-row-preview.inbox-row-preview-unread {
+  color: #60a5fa;
+  font-weight: 700;
+}
+
+.inbox-unread-count {
+  min-width: 21px;
+  height: 21px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  color: #fff;
+  background: var(--blue-primary);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .inbox-avatar {
   width: 42px;
   height: 42px;

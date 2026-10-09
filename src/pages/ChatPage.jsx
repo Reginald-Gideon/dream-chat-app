@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Chatpage.css";
@@ -29,6 +29,31 @@ const otherAvatar = otherMessage?.avatar;
 
   
 
+  const markConversationRead = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/read`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) return;
+
+      const readAt = new Date().toISOString();
+      setMessages((current) => current.map((message) =>
+        String(message.user_id) !== String(user.id) && !message.read_at
+          ? { ...message, read_at: readAt }
+          : message
+      ));
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
+    }
+  }, [conversationId, token, user.id]);
+
   // fetch existing messages
   useEffect(() => {
     async function fetchMessages() {
@@ -40,12 +65,13 @@ const otherAvatar = otherMessage?.avatar;
         if (!response.ok) throw new Error("Failed to load messages.");
         const data = await response.json();
         setMessages(data);
+        markConversationRead();
       } catch (err) {
         setError(err.message);
       }
     }
     fetchMessages();
-  }, [token, conversationId]);
+  }, [token, conversationId, user.id, markConversationRead]);
 
   // socket connection
   useEffect(() => {
@@ -54,6 +80,9 @@ const otherAvatar = otherMessage?.avatar;
 
     socket.on("newMessage", (message) => {
       if (message.conversationId !== Number(conversationId)) return;
+      if (String(message.user_id) !== String(user.id)) {
+        markConversationRead();
+      }
       setMessages((prev) => {
         const alreadyExists = prev.some((m) => m.id === message.id);
         if (alreadyExists) return prev;
@@ -90,32 +119,11 @@ const otherAvatar = otherMessage?.avatar;
     });
 
     return () => socket.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, conversationId]);
+  }, [token, conversationId, user.id, markConversationRead]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  useEffect(() => {
-    async function markAsRead() {
-      try {
-        await fetch(
-          `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/read`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-      } catch (err) {
-        console.error("Failed to mark as read:", err);
-      }
-    }
-    markAsRead();
-  }, [token, conversationId]);
 
   async function handleSend(e) {
     e.preventDefault();

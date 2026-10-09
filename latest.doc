@@ -1,0 +1,541 @@
+NOTIFICATIONS AND UNREAD BADGES
+Code additions and destination files
+
+Scope: This document lists the code added for the Notifications page, unread navigation badges, and the sidebar profile link. The notifications list and mark-read API routes were already present in server.js and are reused by the new page.
+
+============================================================
+1. server.js
+============================================================
+Added an authenticated endpoint that counts unread direct messages and unread notifications using the existing read_at and read columns.
+
+```js
+app.get('/api/unread-counts', authMiddleware, async (req, res) => {
+  try {
+    const [messages, notifications] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS count
+         FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         WHERE m.read_at IS NULL
+           AND m.user_id != $1
+           AND (c.user_one_id = $1 OR c.user_two_id = $1)`,
+        [req.userId]
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS count
+         FROM notifications
+         WHERE user_id = $1 AND read = FALSE`,
+        [req.userId]
+      ),
+    ]);
+
+    res.json({
+      messages: messages.rows[0].count,
+      notifications: notifications.rows[0].count,
+    });
+  } catch (err) {
+    console.error('Get unread counts error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+```
+
+============================================================
+2. src/pages/Layout.jsx
+============================================================
+Added React hooks and route location access:
+
+```jsx
+import { NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+```
+
+Added count state, API refresh, and a refresh on navigation plus a 20-second interval:
+
+```jsx
+const location = useLocation();
+const token = localStorage.getItem("token");
+const [unreadCounts, setUnreadCounts] = useState({ messages: 0, notifications: 0 });
+
+const refreshUnreadCounts = useCallback(async () => {
+  try {
+    const response = await fetch("https://dream-chat-app-1.onrender.com/api/unread-counts", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return;
+    const counts = await response.json();
+    setUnreadCounts({
+      messages: Number(counts.messages) || 0,
+      notifications: Number(counts.notifications) || 0,
+    });
+  } catch {
+    // Keep the last known counts when the API is temporarily unavailable.
+  }
+}, [token]);
+
+useEffect(() => {
+  refreshUnreadCounts();
+  const intervalId = setInterval(refreshUnreadCounts, 20000);
+  return () => clearInterval(intervalId);
+}, [location.pathname, refreshUnreadCounts]);
+```
+
+Added the Messages and Notifications destinations and a capped badge helper:
+
+```jsx
+const navItems = [
+  { to: "/feed", label: "Feed", icon: <FeedIcon /> },
+  { to: "/inbox", label: "Messages", icon: <ChatIcon />, unreadKey: "messages" },
+  { to: "/new", label: "New chat", icon: <AddUserIcon /> },
+  { to: "/requests", label: "Requests", icon: <BellIcon /> },
+  { to: "/notifications", label: "Notifications", icon: <BellIcon />, unreadKey: "notifications" },
+  { to: "/groups", label: "Groups", icon: <GroupIcon /> },
+  { to: "/settings", label: "Settings", icon: <SettingsIcon /> },
+];
+
+function renderBadge(count, className) {
+  if (!count) return null;
+  return <span className={className}>{count > 99 ? "99+" : count}</span>;
+}
+```
+
+Desktop sidebar badge insertion:
+
+```jsx
+{item.icon}
+<span>{item.label}</span>
+{item.unreadKey && renderBadge(unreadCounts[item.unreadKey], "nav-badge")}
+```
+
+Profile avatar and username are now one styled link:
+
+```jsx
+<Link to="/profile" className="sidebar-user">
+  <Avatar src={user?.avatar} name={user?.username} className="sidebar-user-avatar" />
+  <span>{user?.username || "Profile"}</span>
+</Link>
+```
+
+Passed the refresh function to nested pages and added accessible mobile badges:
+
+```jsx
+<Outlet context={{ refreshUnreadCounts }} />
+```
+
+```jsx
+<NavLink
+  key={item.to}
+  to={item.to}
+  aria-label={item.label}
+  className={({ isActive }) => (isActive ? "tabbar-link active" : "tabbar-link")}
+>
+  {item.icon}
+  {item.unreadKey && renderBadge(unreadCounts[item.unreadKey], "tabbar-badge")}
+</NavLink>
+```
+
+============================================================
+3. src/pages/NotificationsPage.jsx
+============================================================
+Added this complete page. It fetches notifications, displays their actor and type, shows unread state, and marks all notifications read through the existing API.
+
+```jsx
+import { useCallback, useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+import Avatar from "../components/Avatar";
+import "../css/Notifications.css";
+
+function describeNotification(type) {
+  if (type === "friend_request") return "sent you a friend request.";
+  if (type === "like") return "liked your post.";
+  if (type === "comment") return "commented on your post.";
+  return "interacted with you.";
+}
+
+function formatNotificationTime(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export default function NotificationsPage() {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [markingRead, setMarkingRead] = useState(false);
+  const [error, setError] = useState("");
+  const token = localStorage.getItem("token");
+  const { refreshUnreadCounts } = useOutletContext();
+
+  const fetchNotifications = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("https://dream-chat-app-1.onrender.com/api/notifications", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Could not load notifications.");
+      setNotifications(await response.json());
+    } catch (fetchError) {
+      setError(fetchError.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  async function markAllRead() {
+    setMarkingRead(true);
+    setError("");
+    try {
+      const response = await fetch("https://dream-chat-app-1.onrender.com/api/notifications/read", {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Could not mark notifications as read.");
+      setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+      await refreshUnreadCounts();
+    } catch (markError) {
+      setError(markError.message);
+    } finally {
+      setMarkingRead(false);
+    }
+  }
+
+  const hasUnread = notifications.some((notification) => !notification.read);
+
+  return (
+    <main className="notifications-page">
+      <header className="notifications-header">
+        <div>
+          <p className="notifications-eyebrow">YOUR ACTIVITY</p>
+          <h1>Notifications</h1>
+          <p className="notifications-subtitle">Friend requests, likes, and comments in one place.</p>
+        </div>
+        <button
+          className="notifications-read-button"
+          type="button"
+          onClick={markAllRead}
+          disabled={!hasUnread || markingRead}
+        >
+          {markingRead ? "Updating..." : "Mark all read"}
+        </button>
+      </header>
+
+      {error && <p className="notifications-error" role="alert">{error}</p>}
+
+      <section className="notifications-list" aria-label="Recent notifications">
+        {loading ? (
+          <p className="notifications-empty">Loading notifications...</p>
+        ) : notifications.length === 0 ? (
+          <p className="notifications-empty">You’re all caught up.</p>
+        ) : (
+          notifications.map((notification) => (
+            <article
+              className={`notification-row${notification.read ? "" : " notification-unread"}`}
+              key={notification.id}
+            >
+              <Avatar
+                src={notification.actor_avatar}
+                name={notification.actor_username}
+                className="notification-avatar"
+              />
+              <p className="notification-message">
+                <strong>{notification.actor_username}</strong> {describeNotification(notification.type)}
+              </p>
+              <time className="notification-time" dateTime={notification.created_at}>
+                {formatNotificationTime(notification.created_at)}
+              </time>
+              {!notification.read && <span className="notification-unread-dot" aria-label="Unread" />}
+            </article>
+          ))
+        )}
+      </section>
+    </main>
+  );
+}
+```
+
+============================================================
+4. src/css/Notifications.css
+============================================================
+Added the responsive dark styling for the page, unread rows, errors, and empty/loading states.
+
+```css
+.notifications-page {
+  width: min(100%, 820px);
+  margin: 0 auto;
+  padding: 34px 28px 48px;
+  color: var(--ink);
+}
+
+.notifications-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.notifications-eyebrow {
+  margin: 0 0 7px;
+  color: #60a5fa;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.notifications-header h1 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.notifications-subtitle {
+  margin: 7px 0 0;
+  color: var(--gray-neutral);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.notifications-read-button {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  color: var(--ink);
+  background: #18181b;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notifications-read-button:hover:not(:disabled) {
+  border-color: var(--blue-primary);
+}
+
+.notifications-read-button:disabled {
+  color: #77777f;
+  cursor: default;
+}
+
+.notifications-read-button:focus-visible {
+  outline: 2px solid var(--blue-primary);
+  outline-offset: 2px;
+}
+
+.notifications-error {
+  margin: 0 0 14px;
+  color: #ff8295;
+  font-size: 13px;
+}
+
+.notifications-list {
+  overflow: hidden;
+  background: #151518;
+  border: 1px solid var(--border-subtle);
+  border-radius: 11px;
+}
+
+.notification-row {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.notification-row:last-child {
+  border-bottom: 0;
+}
+
+.notification-unread {
+  background: rgba(37, 99, 235, 0.09);
+}
+
+.notification-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fff;
+  background: #2563eb;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.notification-message {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: #d4d4d8;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.notification-message strong {
+  color: #fafafa;
+}
+
+.notification-time {
+  flex: 0 0 auto;
+  color: var(--gray-neutral);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.notification-unread-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  background: #3b82f6;
+  border-radius: 50%;
+}
+
+.notifications-empty {
+  margin: 0;
+  padding: 38px 20px;
+  color: var(--gray-neutral);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .notifications-page {
+    padding: 24px 16px 36px;
+  }
+
+  .notifications-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .notifications-header h1 {
+    font-size: 24px;
+  }
+
+  .notification-row {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .notification-time {
+    font-size: 10px;
+  }
+}
+```
+
+============================================================
+5. src/css/Layout.css
+============================================================
+Added count pill and mobile badge styles:
+
+```css
+.sidebar-link {
+  position: relative;
+}
+
+.nav-badge,
+.tabbar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: #e54862;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.nav-badge {
+  min-width: 19px;
+  height: 19px;
+  margin-left: auto;
+  padding: 0 5px;
+}
+```
+
+Added the profile link row styles:
+
+```css
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 9px;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.sidebar-user:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.sidebar-user-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--blue-primary);
+  color: #fff;
+  font-size: 12px;
+}
+```
+
+Added mobile badge positioning inside the existing mobile media query:
+
+```css
+.tabbar-link {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.tabbar-badge {
+  position: absolute;
+  top: 0;
+  right: calc(50% - 21px);
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid #18181b;
+}
+```
+
+============================================================
+6. src/App.js
+============================================================
+Added the Notifications page import and protected route:
+
+```jsx
+import NotificationsPage from './pages/NotificationsPage';
+```
+
+```jsx
+<Route path="/notifications" element={<NotificationsPage />} />
+```
+
+END OF CODE HANDOFF

@@ -130,17 +130,26 @@ app.get('/api/conversations', authMiddleware, async (req, res) => {
          CASE WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END AS other_user_id,
          CASE WHEN c.user_one_id = $1 THEN u2.avatar ELSE u1.avatar END AS other_user_avatar,
          m.content AS last_message,
-         m.created_at AS last_message_at
+         m.created_at AS last_message_at,
+         COALESCE(m.user_id != $1 AND m.read_at IS NULL, FALSE) AS last_message_unread,
+         COALESCE(unread.unread_count, 0)::int AS unread_count
        FROM conversations c
        JOIN users u1 ON c.user_one_id = u1.id
        JOIN users u2 ON c.user_two_id = u2.id
        LEFT JOIN LATERAL (
-         SELECT content, created_at
+         SELECT content, created_at, user_id, read_at
          FROM messages
          WHERE messages.conversation_id = c.id
          ORDER BY created_at DESC
          LIMIT 1
        ) m ON true
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*) AS unread_count
+         FROM messages
+         WHERE messages.conversation_id = c.id
+           AND messages.user_id != $1
+           AND messages.read_at IS NULL
+       ) unread ON true
        WHERE c.user_one_id = $1 OR c.user_two_id = $1
        ORDER BY m.created_at DESC NULLS LAST`,
       [req.userId]
@@ -922,6 +931,25 @@ app.patch('/api/notifications/read', authMiddleware, async (req, res) => {
     res.status(200).json({ message: 'Marked all as read.' });
   } catch (err) {
     console.error('Mark notifications read error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.patch('/api/notifications/:notificationId/read', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE notifications
+       SET read = TRUE
+       WHERE id = $1 AND user_id = $2
+       RETURNING id`,
+      [req.params.notificationId, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Notification not found.' });
+    }
+    res.status(200).json({ message: 'Notification marked as read.' });
+  } catch (err) {
+    console.error('Mark notification read error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
