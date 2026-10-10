@@ -8,14 +8,14 @@ const ChatIcon = () => (
   </svg>
 );
 
-const AddUserIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-    <circle cx="8.5" cy="7" r="4" />
-    <line x1="20" y1="8" x2="20" y2="14" />
-    <line x1="23" y1="11" x2="17" y2="11" />
-  </svg>
-);
+// const AddUserIcon = () => (
+//   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+//     <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+//     <circle cx="8.5" cy="7" r="4" />
+//     <line x1="20" y1="8" x2="20" y2="14" />
+//     <line x1="23" y1="11" x2="17" y2="11" />
+//   </svg>
+// );
 
 const BellIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -109,8 +109,8 @@ export default function Layout() {
   const navItems = [
      { to: "/feed", label: "Feed", icon: <FeedIcon /> },
     { to: "/chat", label: "Messages", icon: <ChatIcon />, unreadKey: "messages" },
-    { to: "/new", label: "New chat", icon: <AddUserIcon /> },
-    { to: "/requests", label: "Requests", icon: <BellIcon /> },
+    // { to: "/new", label: "New chat", icon: <AddUserIcon /> },
+    // { to: "/requests", label: "Requests", icon: <BellIcon /> },
     { to: "/notifications", label: "Notifications", icon: <BellIcon />, unreadKey: "notifications" },
     { to: "/groups", label: "Groups", icon: <GroupIcon /> },
     { to: "/settings", label: "Settings", icon: <SettingsIcon /> },

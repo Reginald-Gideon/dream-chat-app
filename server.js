@@ -89,17 +89,20 @@ app.get('/api/users', authMiddleware, async (req, res) => {
 // --- CONVERSATIONS ---
 
 app.post('/api/conversations', authMiddleware, async (req, res) => {
-  const { otherUserId } = req.body;
+  const otherUserId = Number(req.body.otherUserId);
   if (!otherUserId) {
     return res.status(400).json({ message: 'otherUserId is required.' });
+  }
+  if (otherUserId === req.userId) {
+    return res.status(400).json({ message: "You can't message yourself." });
   }
 
   const [userOneId, userTwoId] = orderUserIds(req.userId, otherUserId);
 
-   try {
-    // must be friends first
+  try {
+    // only friends can start a conversation
     const friendship = await pool.query(
-      `SELECT * FROM friendships
+      `SELECT 1 FROM friendships
        WHERE ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
          AND status = 'accepted'`,
       [req.userId, otherUserId]
@@ -108,10 +111,9 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'You must be friends to start a conversation.' });
     }
 
+    // reuse the conversation if it already exists
     const existing = await pool.query(
-      `SELECT * FROM conversations
-       WHERE user_one_id = $1 AND user_two_id = $2
-       LIMIT 1`,
+      `SELECT * FROM conversations WHERE user_one_id = $1 AND user_two_id = $2 LIMIT 1`,
       [userOneId, userTwoId]
     );
     if (existing.rows.length > 0) {
@@ -120,25 +122,18 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
 
     try {
       const created = await pool.query(
-        `INSERT INTO conversations (user_one_id, user_two_id)
-         VALUES ($1, $2)
-         RETURNING *`,
+        `INSERT INTO conversations (user_one_id, user_two_id) VALUES ($1, $2) RETURNING *`,
         [userOneId, userTwoId]
       );
       return res.status(201).json(created.rows[0]);
     } catch (insertError) {
+      // 23505 = unique violation: another request created it a moment ago
       if (insertError.code !== '23505') throw insertError;
-
-      const createdByAnotherRequest = await pool.query(
-        `SELECT * FROM conversations
-         WHERE user_one_id = $1 AND user_two_id = $2
-         LIMIT 1`,
+      const again = await pool.query(
+        `SELECT * FROM conversations WHERE user_one_id = $1 AND user_two_id = $2 LIMIT 1`,
         [userOneId, userTwoId]
       );
-      if (createdByAnotherRequest.rows.length > 0) {
-        return res.status(200).json(createdByAnotherRequest.rows[0]);
-      }
-      throw insertError;
+      return res.status(200).json(again.rows[0]);
     }
   } catch (err) {
     console.error('Conversation error:', err);
@@ -324,6 +319,17 @@ app.post('/api/conversations/:conversationId/messages', authMiddleware, async (r
 
     io.to(`conversation:${conversationId}`).emit('newMessage', fullMessage);
 
+    // Tell the OTHER person's browser to refresh their unread badge.
+    const convo = await pool.query(
+      'SELECT user_one_id, user_two_id FROM conversations WHERE id = $1',
+      [conversationId]
+    );
+    if (convo.rows.length > 0) {
+      const { user_one_id, user_two_id } = convo.rows[0];
+      const recipientId = user_one_id === req.userId ? user_two_id : user_one_id;
+      io.to(`user:${recipientId}`).emit('unreadMessagesChanged');
+    }
+
     res.status(201).json(fullMessage);
   } catch (err) {
     console.error('Post message error:', err);
@@ -355,7 +361,24 @@ app.get('/api/conversations/:conversationId/messages', authMiddleware, async (re
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
-// Backend
+// Total unread DMs for the Messages badge
+app.get('/api/messages/unread-count', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM messages m
+       JOIN conversations c ON m.conversation_id = c.id
+       WHERE (c.user_one_id = $1 OR c.user_two_id = $1)
+         AND m.user_id != $1
+         AND m.read_at IS NULL`,
+      [req.userId]
+    );
+    res.json({ count: result.rows[0].count });
+  } catch (err) {
+    console.error('Unread count error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 // Edit a message — only the sender can edit their own message
 app.patch('/api/messages/:messageId', authMiddleware, async (req, res) => {
   const { messageId } = req.params;
@@ -432,6 +455,8 @@ app.patch('/api/conversations/:conversationId/read', authMiddleware, async (req,
       conversationId: Number(conversationId),
       readerId: req.userId,
     });
+
+    io.to(`user:${req.userId}`).emit('unreadMessagesChanged');
 
     res.status(200).json({ message: 'Marked as read.' });
   } catch (err) {
@@ -953,6 +978,7 @@ app.get('/api/notifications', authMiddleware, async (req, res) => {
 app.patch('/api/notifications/read', authMiddleware, async (req, res) => {
   try {
     await pool.query(`UPDATE notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE`, [req.userId]);
+    io.to(`user:${req.userId}`).emit('notificationsChanged');
     res.status(200).json({ message: 'Marked all as read.' });
   } catch (err) {
     console.error('Mark notifications read error:', err);
@@ -972,6 +998,7 @@ app.patch('/api/notifications/:notificationId/read', authMiddleware, async (req,
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Notification not found.' });
     }
+    io.to(`user:${req.userId}`).emit('notificationsChanged');
     res.status(200).json({ message: 'Notification marked as read.' });
   } catch (err) {
     console.error('Mark notification read error:', err);

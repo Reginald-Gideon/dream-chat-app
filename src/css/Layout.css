@@ -1,20 +1,14 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap");
 
 :root {
-  --blue-primary: #347fe5;
-  --blue-deep: #1d63c6;
+  --blue-primary: #2563EB;
+  --blue-deep: #1D4ED8;
   --blue-light: #DBEAFE;
-  --blue-pale: #192535;
-  --ink: #f2f5f9;
-  --gray-neutral: #9aa7b8;
-  --border-subtle: #293340;
-  --page-bg: #0c1118;
-  --surface-1: #151c25;
-  --surface-2: #1b242f;
-  --surface-3: #232e3b;
-  --accent-cool: #75baff;
-  --accent-green: #31b487;
-  --danger: #e87986;
+  --blue-pale: #EFF6FF;
+  --ink: #F3F4F6;
+  --gray-neutral: #9CA3AF;
+  --border-subtle: #27272A;
+  --bg-page: #0A0A0A;
 }
 
 * {
@@ -28,7 +22,7 @@ html, body {
 
 .app-layout {
   min-height: 100vh;
-  background: var(--page-bg);
+  background: #0A0A0A;
   font-family: "Inter", sans-serif;
   color: var(--ink);
 }
@@ -36,7 +30,7 @@ html, body {
 /* --- Sidebar (desktop) --- */
 .app-sidebar {
   width: 240px;
-  background: var(--surface-1);
+  background: #18181B;
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -115,13 +109,13 @@ html, body {
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.055);
+  background: rgba(37, 99, 235, 0.15);
   color: var(--ink);
 }
 
 .sidebar-link.active {
-  background: rgba(52, 127, 229, 0.16);
-  color: var(--accent-cool);
+  background: var(--blue-primary);
+  color: #ffffff;
 }
 
 .sidebar-footer {
@@ -175,12 +169,11 @@ html, body {
 }
 
 .sidebar-logout:hover {
-  background: rgba(232, 121, 134, 0.12);
-  color: var(--danger);
+  background: rgba(220, 38, 38, 0.15);
+  color: #DC2626;
 }
 
 .app-content {
-  background: var(--page-bg);
   margin-left: 240px;
   min-height: 100vh;
   display: flex;
@@ -212,7 +205,7 @@ html, body {
     left: 0;
     right: 0;
     height: 60px;
-    background: var(--surface-1);
+    background: #18181B;
     border-top: 1px solid var(--border-subtle);
     z-index: 50;
   }
@@ -240,12 +233,12 @@ html, body {
     min-width: 17px;
     height: 17px;
     padding: 0 4px;
-    border: 2px solid var(--surface-1);
+    border: 2px solid #18181b;
   }
 
   .tabbar-link.active {
-    background: rgba(52, 127, 229, 0.16);
-    color: var(--accent-cool);
+    background: var(--blue-primary);
+    color: #ffffff;
   }
 }
 
@@ -301,8 +294,8 @@ html, body {
 }
 
 .sidebar-link.active {
-  color: var(--accent-cool);
-  background: rgba(52, 127, 229, 0.16);
+  color: #60a5fa;
+  background: rgba(37, 99, 235, 0.18);
 }
 
 .nav-badge {
@@ -310,7 +303,7 @@ html, body {
   top: 1px;
   right: 1px;
   margin-left: 0;
-  border: 2px solid var(--surface-1);
+  border: 2px solid #18181b;
 }
 
 .sidebar-footer {

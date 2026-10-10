@@ -1,13 +1,13 @@
 .feed-page {
-	--feed-ink: var(--ink);
-	--feed-muted: var(--gray-neutral);
-	--feed-line: var(--border-subtle);
-	--feed-blue: var(--accent-cool);
+	--feed-ink: #f4f4f5;
+	--feed-muted: #a1a1aa;
+	--feed-line: #303036;
+	--feed-blue: #53b7e8;
 	min-height: 100vh;
 	padding: 24px 34px 48px;
 	background:
 		radial-gradient(ellipse at 76% 4%, rgba(42, 57, 66, 0.42), transparent 32%),
-		var(--page-bg);
+		#111113;
 	color: var(--feed-ink);
 	font-family: "Inter", sans-serif;
 }
@@ -33,9 +33,9 @@
 .feed-post,
 .current-account,
 .suggestions-panel {
-	background: var(--surface-1);
+	background: #1a1a1e;
 	border: 1px solid var(--feed-line);
-	border-radius: 11px;
+	border-radius: 13px;
 	box-shadow: 0 5px 22px rgba(0, 0, 0, 0.16);
 }
 
@@ -95,11 +95,11 @@
 	height: 58px;
 	padding: 3px;
 	border-radius: 50%;
-	background: conic-gradient(from 215deg, #31b487, #347fe5, #75baff, #31b487);
+	background: conic-gradient(from 215deg, #e7a13c, #cf486c, #7c55b5, #e7a13c);
 }
 
 .story-ring:not(.story-ring-fresh) {
-	background: var(--surface-3);
+	background: #45454c;
 }
 
 .story-ring img {
@@ -107,7 +107,7 @@
 	height: 100%;
 	display: block;
 	object-fit: cover;
-	border: 2px solid var(--surface-1);
+	border: 2px solid #1a1a1e;
 	border-radius: 50%;
 }
 
@@ -120,8 +120,8 @@
 	display: grid;
 	place-items: center;
 	color: #fff;
-	background: var(--blue-primary);
-	border: 2px solid var(--surface-1);
+	background: #1687bd;
+	border: 2px solid #1a1a1e;
 	border-radius: 50%;
 }
 
@@ -240,7 +240,7 @@
 	aspect-ratio: 1.52 / 1;
 	display: block;
 	object-fit: cover;
-	background: var(--surface-3);
+	background: #29292e;
 }
 
 .post-details {
@@ -320,7 +320,7 @@
 .post-time {
 	display: block;
 	margin-top: 5px;
-	color: var(--feed-muted);
+	color: #85858d;
 	font-size: 9px;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
@@ -332,8 +332,8 @@
 	align-items: center;
 	gap: 8px;
 	margin-top: 7px;
-	border-top: 1px solid var(--feed-line);
-	color: var(--feed-muted);
+	border-top: 1px solid #303036;
+	color: #a1a1aa;
 	font-size: 12px;
 }
 
@@ -360,7 +360,7 @@
 }
 
 .comment-smile {
-	color: var(--feed-muted);
+	color: #a1a1aa;
 }
 
 .comment-submit {
@@ -494,7 +494,7 @@
 
 .feed-footer {
 	padding: 19px 10px 0;
-	color: var(--feed-muted);
+	color: #85858d;
 	font-size: 10px;
 	line-height: 1.8;
 }
@@ -536,7 +536,7 @@
 @media (max-width: 520px) {
 	.feed-page {
 		padding: 10px 0 20px;
-		background: var(--page-bg);
+		background: #111113;
 	}
 
 	.feed-layout {

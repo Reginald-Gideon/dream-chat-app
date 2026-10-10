@@ -1,5 +1,3 @@
-/* Legacy global page rules are replaced by route-specific stylesheets. */
-/*
 .chat-page {
   min-height: 100vh;
   display: flex;
@@ -258,7 +256,7 @@
 }
 
 .message-mine .message-author {
-  display: none;
+  display: none; /* no need to label your own messages */
 }
 
 .message-mine .message-content {
@@ -324,36 +322,4 @@ display: flex;flex-direction: column;
 }
 .message-mine .message-timestamp {
   color: #4d5678;
-}
-*/
-
-html,
-body,
-#root {
-  min-height: 100%;
-  margin: 0;
-}
-
-body {
-  background: var(--page-bg);
-  color: var(--ink);
-  font-family: "Inter", sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-
-button,
-a {
-  -webkit-tap-highlight-color: transparent;
-}
-
-:focus-visible {
-  outline: 2px solid #72b8ff;
-  outline-offset: 2px;
 }

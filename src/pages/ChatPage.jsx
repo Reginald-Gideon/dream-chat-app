@@ -20,12 +20,6 @@ export default function ChatPage() {
   const [editContent, setEditContent] = useState("");
   const [replyingTo, setReplyingTo] = useState(null); // { id, content, username }
   const [otherIsTyping, setOtherIsTyping] = useState(false);
-  const [contactMenuOpen, setContactMenuOpen] = useState(false);
-  const [contactPanel, setContactPanel] = useState(null);
-  const [contactStatuses, setContactStatuses] = useState([]);
-  const [contactStatusIndex, setContactStatusIndex] = useState(0);
-  const [contactStatusError, setContactStatusError] = useState("");
-  const contactMenuRef = useRef(null);
 const typingTimeoutRef = useRef(null);
 const socketRef = useRef(null);
   const bottomRef = useRef(null);
@@ -57,20 +51,6 @@ const otherAvatar = activeConversation?.other_user_avatar || otherMessage?.avata
     const intervalId = window.setInterval(fetchConversations, 15000);
     return () => window.clearInterval(intervalId);
   }, [token]);
-
-  useEffect(() => {
-    setContactMenuOpen(false);
-    setContactPanel(null);
-  }, [conversationId]);
-
-  useEffect(() => {
-    if (!contactMenuOpen) return;
-    function closeMenu(event) {
-      if (!contactMenuRef.current?.contains(event.target)) setContactMenuOpen(false);
-    }
-    document.addEventListener("mousedown", closeMenu);
-    return () => document.removeEventListener("mousedown", closeMenu);
-  }, [contactMenuOpen]);
 
   const markConversationRead = useCallback(async () => {
     try {
@@ -175,59 +155,6 @@ const otherAvatar = activeConversation?.other_user_avatar || otherMessage?.avata
   const filteredConversations = conversations.filter((conversation) =>
     conversation.other_username.toLowerCase().includes(conversationSearch.toLowerCase())
   );
-
-  async function markContactStatusViewed(statusId) {
-    try {
-      await fetch(`https://dream-chat-app-1.onrender.com/api/statuses/${statusId}/view`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } catch {
-      // Viewing a status should remain available if the view count cannot be updated.
-    }
-  }
-
-  async function handleViewContactStatus() {
-    setContactMenuOpen(false);
-    setContactStatusError("");
-    setContactPanel("loading");
-
-    try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/statuses", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Could not load this user's status.");
-
-      const statuses = await response.json();
-      const theirs = statuses.filter((status) =>
-        String(status.user_id) === String(activeConversation?.other_user_id)
-      );
-      setContactStatuses(theirs);
-      setContactStatusIndex(0);
-
-      if (theirs.length === 0) {
-        setContactPanel("empty");
-        return;
-      }
-
-      setContactPanel("status");
-      markContactStatusViewed(theirs[0].id);
-    } catch (statusError) {
-      setContactStatusError(statusError.message);
-      setContactPanel("error");
-    }
-  }
-
-  function moveContactStatus(direction) {
-    const nextIndex = contactStatusIndex + direction;
-    if (nextIndex < 0 || nextIndex >= contactStatuses.length) {
-      setContactPanel(null);
-      return;
-    }
-
-    setContactStatusIndex(nextIndex);
-    markContactStatusViewed(contactStatuses[nextIndex].id);
-  }
 
   async function handleSend(e) {
     e.preventDefault();
@@ -402,33 +329,7 @@ useEffect(() => {
             ←
           </button>
           {conversationId ? (
-            <div className="chat-contact-anchor" ref={contactMenuRef}>
-              <button
-                className="chat-contact-trigger"
-                type="button"
-                aria-label={`Options for ${otherPerson || "contact"}`}
-                aria-haspopup="menu"
-                aria-expanded={contactMenuOpen}
-                onClick={() => setContactMenuOpen((open) => !open)}
-              >
-                <Avatar src={otherAvatar} name={otherPerson} className="chat-header-avatar" />
-              </button>
-              {contactMenuOpen && (
-                <div className="chat-contact-menu" role="menu">
-                  <button type="button" role="menuitem" onClick={() => {
-                    setContactMenuOpen(false);
-                    setContactPanel("profile");
-                  }}>
-                    <span className="contact-menu-icon">@</span>
-                    <span>View profile</span>
-                  </button>
-                  <button type="button" role="menuitem" onClick={handleViewContactStatus}>
-                    <span className="contact-menu-icon">◉</span>
-                    <span>View status</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            <Avatar src={otherAvatar} name={otherPerson} className="chat-header-avatar" />
           ) : (
             <span className="chat-header-brand-mark" aria-hidden="true">M</span>
           )}
@@ -551,52 +452,6 @@ useEffect(() => {
         />
         <button type="submit" className="send-button">Send</button>
       </form>}
-
-      {contactPanel && (
-        <div className="contact-overlay" onClick={() => setContactPanel(null)}>
-          <section className="contact-dialog" role="dialog" aria-modal="true" aria-label="Contact details" onClick={(event) => event.stopPropagation()}>
-            <button className="contact-dialog-close" type="button" onClick={() => setContactPanel(null)} aria-label="Close">×</button>
-            {contactPanel === "profile" && (
-              <div className="contact-profile-preview">
-                <Avatar src={otherAvatar} name={otherPerson} className="contact-profile-avatar" />
-                <h2>{otherPerson || "Contact"}</h2>
-                <p>Morphues contact</p>
-                <button type="button" className="contact-profile-status" onClick={handleViewContactStatus}>
-                  View status
-                </button>
-              </div>
-            )}
-            {contactPanel === "loading" && <p className="contact-dialog-message">Loading status…</p>}
-            {contactPanel === "empty" && (
-              <div className="contact-profile-preview">
-                <Avatar src={otherAvatar} name={otherPerson} className="contact-profile-avatar" />
-                <h2>{otherPerson || "Contact"}</h2>
-                <p>No active status right now.</p>
-              </div>
-            )}
-            {contactPanel === "error" && <p className="contact-dialog-message">{contactStatusError}</p>}
-            {contactPanel === "status" && contactStatuses[contactStatusIndex] && (
-              <div
-                className="contact-status-slide"
-                style={{ background: contactStatuses[contactStatusIndex].image_url ? "#080b10" : contactStatuses[contactStatusIndex].background_color }}
-              >
-                {contactStatuses[contactStatusIndex].image_url && (
-                  <img src={contactStatuses[contactStatusIndex].image_url} alt="" />
-                )}
-                {contactStatuses[contactStatusIndex].content && (
-                  <p>{contactStatuses[contactStatusIndex].content}</p>
-                )}
-                <span className="contact-status-count">
-                  {contactStatusIndex + 1} / {contactStatuses.length}
-                </span>
-                <button className="contact-status-next" type="button" onClick={() => moveContactStatus(1)}>
-                  {contactStatusIndex + 1 < contactStatuses.length ? "Next" : "Done"}
-                </button>
-              </div>
-            )}
-          </section>
-        </div>
-      )}
       </section>
     </div>
   );

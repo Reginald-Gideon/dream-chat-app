@@ -1,13 +1,22 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap");
 
+:root {
+  --blue-primary: #2563EB;
+  --blue-deep: #1D4ED8;
+  --blue-light: #DBEAFE;
+  --blue-pale: #EFF6FF;
+  --ink: #F3F4F6;
+  --slate-accent: #2D608B;
+  --gray-neutral: #9CA3AF;
+  --border-subtle: #27272A;
+}
+
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(52, 127, 229, 0.12), transparent 45%),
-    var(--page-bg);
+  background: #0A0A0A;
   font-family: "Inter", sans-serif;
   padding: 24px;
   box-sizing: border-box;
@@ -16,12 +25,12 @@
 .login-card {
   width: 100%;
   max-width: 400px;
-  background: var(--surface-1);
+  background: #18181B;
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: 24px;
   padding: 40px 36px;
   box-sizing: border-box;
-  box-shadow: 0 24px 64px -32px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 20px 60px -20px rgba(73, 170, 255, 0.25);
 }
 
 .login-brand {
@@ -37,9 +46,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--blue-primary);
-  border-radius: 9px;
+  background: linear-gradient(135deg, var(--blue-primary), var(--blue-deep));
+  border-radius: 10px;
   font-size: 18px;
+  box-shadow: 0 6px 16px -4px rgba(73, 170, 255, 0.5);
 }
 
 .login-brand-name {
@@ -72,7 +82,7 @@
 .login-label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--gray-neutral);
+  color: #4B5568;
   margin-bottom: 6px;
   margin-top: 16px;
 }
@@ -82,9 +92,9 @@
 }
 
 .login-input {
-  background: var(--surface-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: 9px;
+  background: var(--blue-pale);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 999px;
   padding: 13px 18px;
   font-size: 15px;
   color: var(--ink);
@@ -94,13 +104,13 @@
 }
 
 .login-input::placeholder {
-  color: #8290a2;
+  color: #9AA6BD;
 }
 
 .login-input:focus {
-  background: var(--surface-2);
+  background: #18181B;
   border-color: var(--blue-primary);
-  box-shadow: 0 0 0 3px rgba(52, 127, 229, 0.18);
+  box-shadow: 0 0 0 4px rgba(73, 170, 255, 0.15);
 }
 
 .login-error {
@@ -112,19 +122,20 @@
 
 .login-button {
   margin-top: 26px;
-  background: var(--blue-primary);
+  background: linear-gradient(135deg, var(--blue-primary), var(--blue-deep));
   color: #ffffff;
   font-weight: 700;
   font-size: 15px;
   border: none;
-  border-radius: 9px;
+  border-radius: 999px;
   padding: 14px;
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 10px 24px -8px rgba(73, 170, 255, 0.55);
+  transition: box-shadow 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
 }
 
 .login-button:hover:not(:disabled) {
-  background: var(--blue-deep);
+  box-shadow: 0 12px 28px -6px rgba(73, 170, 255, 0.7);
   transform: translateY(-1px);
 }
 
@@ -135,6 +146,7 @@
 .login-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .login-button:focus-visible,
@@ -151,7 +163,7 @@
 }
 
 .login-footer a {
-  color: var(--accent-cool);
+  color: var(--blue-deep);
   text-decoration: none;
   font-weight: 600;
 }
