@@ -496,6 +496,17 @@ useEffect(() => {
         ) : messages.map((msg) => {
           const isMine = msg.user_id === user.id;
           const isEditing = editingId === msg.id;
+          const statusReplyLines = msg.content.startsWith("Status reply · ")
+            ? msg.content.split("\n")
+            : null;
+          const statusReplySeparator = statusReplyLines?.findIndex((line, index) => index > 0 && line === "") ?? -1;
+          const statusReplyName = statusReplyLines?.[0].slice("Status reply · ".length);
+          const statusReplyQuote = statusReplyLines && statusReplySeparator > 1
+            ? statusReplyLines.slice(1, statusReplySeparator).join("\n")
+            : "";
+          const statusReplyText = statusReplyLines && statusReplySeparator >= 0
+            ? statusReplyLines.slice(statusReplySeparator + 1).join("\n")
+            : "";
 
           return (
             <div key={msg.id} className={`message ${isMine ? "message-mine" : "message-theirs"}`}>
@@ -531,7 +542,15 @@ useEffect(() => {
                   )}
 
                   <span className="message-content">
-                    {msg.content}
+                    {statusReplyLines ? (
+                      <>
+                        <span className="message-status-context">
+                          <strong>{isMine ? `Your reply to ${statusReplyName}'s status` : "Replied to your status"}</strong>
+                          {statusReplyQuote && <span>{statusReplyQuote}</span>}
+                        </span>
+                        <span className="message-status-reply-text">{statusReplyText}</span>
+                      </>
+                    ) : msg.content}
                     {msg.edited_at && <span className="message-edited-tag"> (edited)</span>}
                   </span>
                   <span className="message-time">

@@ -236,3 +236,160 @@
   cursor: pointer;
   z-index: 5;
 }
+
+.status-item:focus-visible {
+  outline: 2px solid #528cf5;
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.status-add {
+  padding: 0;
+  cursor: pointer;
+}
+
+.status-viewer-header {
+  position: absolute;
+  top: 22px;
+  left: 16px;
+  right: 50px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.status-viewer-header > img,
+.status-viewer-avatar-fallback {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+}
+
+.status-viewer-avatar-fallback {
+  background: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-viewer-header > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.status-viewer-header strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-viewer-header > div > span {
+  font-size: 10px;
+  opacity: 0.82;
+}
+
+.status-reply-form {
+  position: absolute;
+  right: 14px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 14px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px;
+  background: rgba(15, 17, 22, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+}
+
+.status-reply-form input {
+  min-width: 0;
+  flex: 1;
+  padding: 8px 10px;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  font-size: 13px;
+}
+
+.status-reply-form input::placeholder {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.status-reply-form button {
+  min-width: 54px;
+  padding: 9px 13px;
+  color: #fff;
+  background: #2563eb;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.status-reply-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status-delete {
+  position: absolute;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: 16px;
+  z-index: 7;
+  padding: 10px 14px;
+  color: #fff;
+  background: rgba(180, 35, 58, 0.92);
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.status-feedback {
+  position: absolute;
+  right: 16px;
+  bottom: 70px;
+  left: 16px;
+  z-index: 7;
+  margin: 0;
+  padding: 9px 12px;
+  color: #fff;
+  background: rgba(15, 17, 22, 0.78);
+  border-radius: 8px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.status-feedback-error {
+  color: #ffd8de;
+  background: rgba(145, 25, 47, 0.92);
+}
+
+@media (max-width: 520px) {
+  .status-viewer-content {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+  }
+}

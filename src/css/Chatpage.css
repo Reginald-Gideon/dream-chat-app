@@ -93,6 +93,43 @@
   word-break: break-word;
 }
 
+.message-status-context {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0 0 7px;
+  padding: 7px 9px;
+  border-left: 2px solid rgba(255, 255, 255, 0.62);
+  border-radius: 2px 7px 7px 2px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.message-status-context strong {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.86;
+}
+
+.message-status-context > span {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.9;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.message-status-reply-text {
+  display: block;
+  white-space: pre-wrap;
+}
+
+.message-theirs .message-status-context {
+  border-left-color: var(--blue-primary);
+  background: rgba(37, 99, 235, 0.08);
+}
+
 .message-time {
   font-size: 10.5px;
   color: var(--gray-neutral);

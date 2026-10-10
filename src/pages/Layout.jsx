@@ -127,14 +127,16 @@ export default function Layout() {
   }
 
   const navItems = [
-     { to: "/feed", label: "Feed", icon: <FeedIcon /> },
+    { to: "/feed", label: "Feed", icon: <FeedIcon /> },
     { to: "/chat", label: "Messages", icon: <ChatIcon />, unreadKey: "messages" },
-    // { to: "/new", label: "New chat", icon: <AddUserIcon /> },
-    // { to: "/requests", label: "Requests", icon: <BellIcon /> },
     { to: "/notifications", label: "Notifications", icon: <BellIcon />, unreadKey: "notifications" },
-
     { to: "/settings", label: "Settings", icon: <SettingsIcon /> },
-   
+  ];
+
+  const mobileNavItems = [
+    navItems[0],
+    navItems[1],
+    { to: "/profile", label: "Profile", icon: <Avatar src={user?.avatar} name={user?.username} className="tabbar-profile-avatar" /> },
   ];
 
   function renderBadge(count, className) {
@@ -183,16 +185,20 @@ export default function Layout() {
           <header className="mobile-app-header">
             <span className="mobile-app-header-brand" aria-hidden="true">M</span>
             <h1>{mobilePageTitle}</h1>
+            <Link to="/notifications" className="mobile-app-header-notifications" aria-label="Notifications">
+              <BellIcon />
+              {renderBadge(unreadCounts.notifications, "mobile-header-badge")}
+            </Link>
             <Link to="/profile" className="mobile-app-header-profile" aria-label="Open profile">
               <Avatar src={user?.avatar} name={user?.username} className="mobile-app-header-avatar" />
             </Link>
           </header>
         )}
-        <Outlet context={{ refreshUnreadCounts }} />
+        <Outlet context={{ refreshUnreadCounts, handleLogout }} />
       </div>
 
       <nav className="mobile-tabbar">
-        {navItems.map((item) => (
+        {mobileNavItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -203,10 +209,6 @@ export default function Layout() {
             {item.unreadKey && renderBadge(unreadCounts[item.unreadKey], "tabbar-badge")}
           </NavLink>
         ))}
-        
-        <button onClick={handleLogout} className="tabbar-link">
-          <LogoutIcon />
-        </button>
       </nav>
     </div>
   );

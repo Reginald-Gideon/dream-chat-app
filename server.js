@@ -953,6 +953,40 @@ app.get('/api/posts/:postId/comments', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+
+app.delete('/api/posts/:postId', authMiddleware, async (req, res) => {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const ownedPost = await client.query(
+      'SELECT id FROM posts WHERE id = $1 AND user_id = $2 FOR UPDATE',
+      [req.params.postId, req.userId]
+    );
+    if (ownedPost.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Post not found.' });
+    }
+
+    await client.query('DELETE FROM post_likes WHERE post_id = $1', [req.params.postId]);
+    await client.query('DELETE FROM post_comments WHERE post_id = $1', [req.params.postId]);
+    await client.query('DELETE FROM notifications WHERE post_id = $1', [req.params.postId]);
+    await client.query('DELETE FROM posts WHERE id = $1 AND user_id = $2', [req.params.postId, req.userId]);
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Post deleted.' });
+  } catch (err) {
+    try {
+      if (client) await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Delete post rollback error:', rollbackError);
+    }
+    console.error('Delete post error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  } finally {
+    if (client) client.release();
+  }
+});
+
 // Create a status
 app.post('/api/statuses', authMiddleware, async (req, res) => {
   const { content, imageUrl, backgroundColor } = req.body;
@@ -999,6 +1033,37 @@ app.get('/api/statuses', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Get statuses error:', err);
     res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.delete('/api/statuses/:statusId', authMiddleware, async (req, res) => {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const ownedStatus = await client.query(
+      'SELECT id FROM statuses WHERE id = $1 AND user_id = $2 FOR UPDATE',
+      [req.params.statusId, req.userId]
+    );
+    if (ownedStatus.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Status not found.' });
+    }
+
+    await client.query('DELETE FROM status_views WHERE status_id = $1', [req.params.statusId]);
+    await client.query('DELETE FROM statuses WHERE id = $1 AND user_id = $2', [req.params.statusId, req.userId]);
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Status deleted.' });
+  } catch (err) {
+    try {
+      if (client) await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Delete status rollback error:', rollbackError);
+    }
+    console.error('Delete status error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  } finally {
+    if (client) client.release();
   }
 });
 

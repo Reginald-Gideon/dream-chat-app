@@ -256,10 +256,52 @@ html, body {
     border-radius: 50%;
   }
 
+  .mobile-app-header-notifications {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    display: grid;
+    place-items: center;
+    color: var(--theme-muted);
+    background: var(--theme-surface-raised);
+    border: 1px solid var(--theme-border);
+    border-radius: 50%;
+    text-decoration: none;
+  }
+
+  .mobile-app-header-notifications:hover,
+  .mobile-app-header-notifications:focus-visible {
+    color: #528cf5;
+  }
+
+  .mobile-header-badge {
+    position: absolute;
+    top: -3px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid var(--theme-surface);
+    font-size: 9px;
+  }
+
   .mobile-app-header-avatar {
     width: 100%;
     height: 100%;
     font-size: 12px;
+  }
+
+  .tabbar-profile-avatar {
+    width: 26px;
+    height: 26px;
+    overflow: hidden;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    font-size: 9px;
   }
 
   .newchat-page > .newchat-title,
@@ -313,6 +355,11 @@ html, body {
   .tabbar-link.active {
     background: var(--blue-primary);
     color: #ffffff;
+  }
+
+  .tabbar-link.active .tabbar-profile-avatar {
+    border-color: #528cf5;
+    box-shadow: 0 0 0 2px rgba(82, 140, 245, 0.25);
   }
 }
 

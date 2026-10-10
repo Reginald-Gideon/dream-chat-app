@@ -18,6 +18,10 @@ export default function StatusBar() {
   const [color, setColor] = useState(COLORS[0]);
   const [imagePreview, setImagePreview] = useState(null);
   const [posting, setPosting] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [replySending, setReplySending] = useState(false);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [statusError, setStatusError] = useState("");
   const fileInputRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -49,10 +53,16 @@ export default function StatusBar() {
   async function openGroup(group) {
     setViewerGroup(group.items);
     setViewerIndex(0);
-    markViewed(group.items[0].id);
+    setReplyText("");
+    setReplyMessage("");
+    setStatusError("");
+    if (Number(group.user_id) !== Number(user?.id)) markViewed(group.items[0].id);
   }
 
   async function markViewed(statusId) {
+    const status = statuses.find((item) => item.id === statusId);
+    if (Number(status?.user_id) === Number(user?.id)) return;
+
     try {
       await fetch(`https://dream-chat-app-1.onrender.com/api/statuses/${statusId}/view`, {
         method: "POST",
@@ -76,6 +86,84 @@ export default function StatusBar() {
 
   function prevStory() {
     if (viewerIndex > 0) setViewerIndex(viewerIndex - 1);
+  }
+
+  async function handleStatusReply(event) {
+    event.preventDefault();
+    const message = replyText.trim();
+    const status = viewerGroup?.[viewerIndex];
+    if (!message || !status || Number(status.user_id) === Number(user?.id)) return;
+
+    setReplySending(true);
+    setStatusError("");
+    setReplyMessage("");
+    try {
+      const conversationResponse = await fetch("https://dream-chat-app-1.onrender.com/api/conversations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ otherUserId: status.user_id }),
+      });
+      const conversationData = await conversationResponse.json().catch(() => ({}));
+      if (!conversationResponse.ok) {
+        throw new Error(conversationData.message || "Could not open a conversation for this status.");
+      }
+
+      const statusQuote = (status.content?.trim() || (status.image_url ? "Photo status" : "Status"))
+        .replace(/\s+/g, " ");
+      const content = `Status reply · ${status.username}\n${statusQuote}\n\n${message}`;
+      const messageResponse = await fetch(
+        `https://dream-chat-app-1.onrender.com/api/conversations/${conversationData.id}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content }),
+        }
+      );
+      const messageData = await messageResponse.json().catch(() => ({}));
+      if (!messageResponse.ok) throw new Error(messageData.message || "Could not send your status reply.");
+
+      setReplyText("");
+      setReplyMessage(`Reply sent to ${status.username}.`);
+    } catch (replyError) {
+      setStatusError(replyError.message || "Could not send your status reply.");
+    } finally {
+      setReplySending(false);
+    }
+  }
+
+  async function deleteCurrentStatus() {
+    const status = viewerGroup?.[viewerIndex];
+    if (!status || Number(status.user_id) !== Number(user?.id)) return;
+    if (!window.confirm("Delete this status? This action cannot be undone.")) return;
+
+    setStatusError("");
+    try {
+      const response = await fetch(`https://dream-chat-app-1.onrender.com/api/statuses/${status.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Failed to delete status.");
+
+      const remaining = viewerGroup.filter((item) => item.id !== status.id);
+      setStatuses((current) => current.filter((item) => item.id !== status.id));
+      if (remaining.length === 0) {
+        setViewerGroup(null);
+        setViewerIndex(0);
+      } else {
+        const nextIndex = Math.min(viewerIndex, remaining.length - 1);
+        setViewerGroup(remaining);
+        setViewerIndex(nextIndex);
+      }
+    } catch (deleteError) {
+      setStatusError(deleteError.message || "Failed to delete status.");
+    }
   }
 
   async function handleImagePick(e) {
@@ -111,14 +199,31 @@ export default function StatusBar() {
   return (
     <>
       <div className="status-bar">
-        <div className="status-item" onClick={() => setComposerOpen(true)}>
+        <div
+          className="status-item"
+          onClick={() => {
+            const ownStatuses = groups.find((group) => Number(group.user_id) === Number(user?.id));
+            if (ownStatuses) openGroup(ownStatuses);
+            else setComposerOpen(true);
+          }}
+        >
           <div className="status-ring status-ring-self">
             {user?.avatar ? (
               <img src={user.avatar} alt="" />
             ) : (
               <div className="status-avatar-fallback">{getInitials(user?.username)}</div>
             )}
-            <span className="status-add">+</span>
+            <button
+              type="button"
+              className="status-add"
+              aria-label="Create a status"
+              onClick={(event) => {
+                event.stopPropagation();
+                setComposerOpen(true);
+              }}
+            >
+              +
+            </button>
           </div>
           <span className="status-name">Your status</span>
         </div>
@@ -162,9 +267,44 @@ export default function StatusBar() {
               )}
             </div>
 
+            <div className="status-viewer-header">
+              {viewerGroup[viewerIndex].avatar ? (
+                <img src={viewerGroup[viewerIndex].avatar} alt="" />
+              ) : (
+                <span className="status-viewer-avatar-fallback">
+                  {getInitials(viewerGroup[viewerIndex].username)}
+                </span>
+              )}
+              <div>
+                <strong>{viewerGroup[viewerIndex].username}</strong>
+                <span>Status · {new Date(viewerGroup[viewerIndex].created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+              </div>
+            </div>
+
             <button className="status-nav left" onClick={prevStory}>‹</button>
             <button className="status-nav right" onClick={nextStory}>›</button>
             <button className="status-close" onClick={() => setViewerGroup(null)}>✕</button>
+            {statusError && <p className="status-feedback status-feedback-error" role="alert">{statusError}</p>}
+            {replyMessage && <p className="status-feedback" role="status">{replyMessage}</p>}
+            {Number(viewerGroup[viewerIndex].user_id) === Number(user?.id) ? (
+              <button type="button" className="status-delete" onClick={deleteCurrentStatus}>
+                Delete status
+              </button>
+            ) : (
+              <form className="status-reply-form" onSubmit={handleStatusReply}>
+                <input
+                  type="text"
+                  value={replyText}
+                  onChange={(event) => setReplyText(event.target.value)}
+                  placeholder={`Reply to ${viewerGroup[viewerIndex].username}…`}
+                  aria-label={`Reply to ${viewerGroup[viewerIndex].username}'s status`}
+                  maxLength={1000}
+                />
+                <button type="submit" disabled={!replyText.trim() || replySending}>
+                  {replySending ? "…" : "Send"}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
