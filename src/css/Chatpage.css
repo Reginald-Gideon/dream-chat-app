@@ -687,6 +687,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .chat-empty-icon {
+    display: none;
+  }
+
   .chat-list-panel {
     display: none;
   }
