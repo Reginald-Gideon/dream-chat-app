@@ -228,9 +228,16 @@ app.patch('/api/friends/:friendshipId', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Status must be accepted or declined.' });
   }
 
+  const client = await pool.connect();
+  let acceptedConversationMessage = null;
+  let acceptedConversationId = null;
+  let requesterId = null;
+
   try {
+    await client.query('BEGIN');
+
     // only the addressee can respond to a request sent to them
-    const result = await pool.query(
+    const result = await client.query(
       `UPDATE friendships SET status = $1
        WHERE id = $2 AND addressee_id = $3 AND status = 'pending'
        RETURNING *`,
@@ -238,15 +245,76 @@ app.patch('/api/friends/:friendshipId', authMiddleware, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(403).json({ message: 'Request not found or already handled.' });
     }
 
     const updated = result.rows[0];
-    io.to(`user:${updated.requester_id}`).emit('friendRequestResponded', updated);
+    requesterId = updated.requester_id;
+
+    if (status === 'accepted') {
+      const [userOneId, userTwoId] = orderUserIds(Number(req.userId), Number(requesterId));
+      const insertedConversation = await client.query(
+        `INSERT INTO conversations (user_one_id, user_two_id)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
+        [userOneId, userTwoId]
+      );
+      const conversationId = insertedConversation.rows[0]?.id
+        ?? (await client.query(
+          `SELECT id FROM conversations WHERE user_one_id = $1 AND user_two_id = $2`,
+          [userOneId, userTwoId]
+        )).rows[0]?.id;
+
+      if (!conversationId) {
+        throw new Error('Failed to create or find the new friends conversation.');
+      }
+
+      const accepterResult = await client.query(
+        'SELECT username, avatar FROM users WHERE id = $1',
+        [req.userId]
+      );
+      const messageContent = "You're now friends. Say hello!";
+      const messageResult = await client.query(
+        `INSERT INTO messages (content, user_id, conversation_id)
+         VALUES ($1, $2, $3)
+         RETURNING id, content, created_at, reply_to_id`,
+        [messageContent, req.userId, conversationId]
+      );
+
+      acceptedConversationId = conversationId;
+      acceptedConversationMessage = {
+        ...messageResult.rows[0],
+        username: accepterResult.rows[0].username,
+        avatar: accepterResult.rows[0].avatar,
+        user_id: req.userId,
+        read_at: null,
+        conversationId: Number(conversationId),
+      };
+    }
+
+    await client.query('COMMIT');
+    io.to(`user:${requesterId}`).emit('friendRequestResponded', updated);
+
+    if (status === 'accepted') {
+      io.to(`conversation:${acceptedConversationId}`).emit('newMessage', acceptedConversationMessage);
+      io.to(`user:${req.userId}`).emit('conversationCreated');
+      io.to(`user:${requesterId}`).emit('conversationCreated');
+      io.to(`user:${requesterId}`).emit('unreadMessagesChanged');
+    }
+
     res.json(updated);
   } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Friend request rollback error:', rollbackError);
+    }
     console.error('Respond to request error:', err);
     res.status(500).json({ message: 'Internal server error.' });
+  } finally {
+    client.release();
   }
 });
 
@@ -510,10 +578,17 @@ res.status(500).json({message:'Internal server error.'});
 app.get('/api/groups', authMiddleware, async (req, res) => {
   try{
     const result = await pool.query(
-      `SELECT g.id, g.name, g.created_by
+      `SELECT g.id, g.name, g.created_by,
+              COUNT(m.id)::int AS message_count,
+              COUNT(m.id) FILTER (
+                WHERE m.user_id != $1 AND m.read_at IS NULL
+              )::int AS unread_count
        FROM groups g
        JOIN group_members gm ON g.id = gm.group_id
-       WHERE gm.user_id = $1`,
+       LEFT JOIN messages m ON m.group_id = g.id
+       WHERE gm.user_id = $1
+       GROUP BY g.id, g.name, g.created_by
+       ORDER BY g.name ASC`,
       [req.userId]
     );
     res.json(result.rows);
@@ -568,6 +643,23 @@ app.post('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
 app.get('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
   const { groupId } = req.params;
   try {
+    const membership = await pool.query(
+      `SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2`,
+      [groupId, req.userId]
+    );
+    if (membership.rows.length === 0) {
+      return res.status(403).json({ message: 'You are not a member of this group.' });
+    }
+
+    await pool.query(
+      `UPDATE messages
+       SET read_at = NOW()
+       WHERE group_id = $1
+         AND user_id != $2
+         AND read_at IS NULL`,
+      [groupId, req.userId]
+    );
+
     const result = await pool.query(
       `SELECT 
          m.id, m.content, m.created_at, m.edited_at, m.user_id, m.reply_to_id,

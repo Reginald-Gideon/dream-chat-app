@@ -2,9 +2,11 @@ import { useState } from "react";
 import { resizeImage } from "../resizeImage";
 import Avatar from "../components/Avatar";
 import "../css/NewChat.css";
+import { applyTheme, getSavedTheme } from "../theme";
 
 export default function SettingsPage() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
+  const [theme, setTheme] = useState(getSavedTheme);
   const token = localStorage.getItem("token");
 
   const [username, setUsername] = useState(user?.username || "");
@@ -24,6 +26,11 @@ export default function SettingsPage() {
 
   function setFieldMessage(field, text, isError) {
     setMessages((prev) => ({ ...prev, [field]: { text, isError } }));
+  }
+
+  function handleThemeChange(nextTheme) {
+    setTheme(nextTheme);
+    applyTheme(nextTheme);
   }
 
   async function handleFileChange(e) {
@@ -124,6 +131,45 @@ export default function SettingsPage() {
     <div className="newchat-page">
       <h1 className="newchat-title">Settings</h1>
       <p className="newchat-subtitle">Manage your profile and account.</p>
+
+      <section className="appearance-settings" aria-labelledby="appearance-title">
+        <div>
+          <h2 id="appearance-title">Appearance</h2>
+          <p>Choose the look you prefer for Morphues.</p>
+        </div>
+        <div className="appearance-options" role="group" aria-label="Color mode">
+          <button
+            type="button"
+            className={`appearance-choice${theme === "light" ? " selected" : ""}`}
+            aria-pressed={theme === "light"}
+            onClick={() => handleThemeChange("light")}
+          >
+            <span className="appearance-preview appearance-preview-light" aria-hidden="true">
+              <i /><i /><i />
+            </span>
+            <span className="appearance-choice-label">
+              <span className="appearance-choice-icon" aria-hidden="true">☀</span>
+              Light
+            </span>
+            <span className="appearance-choice-indicator" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`appearance-choice${theme === "dark" ? " selected" : ""}`}
+            aria-pressed={theme === "dark"}
+            onClick={() => handleThemeChange("dark")}
+          >
+            <span className="appearance-preview appearance-preview-dark" aria-hidden="true">
+              <i /><i /><i />
+            </span>
+            <span className="appearance-choice-label">
+              <span className="appearance-choice-icon" aria-hidden="true">☾</span>
+              Dark
+            </span>
+            <span className="appearance-choice-indicator" aria-hidden="true" />
+          </button>
+        </div>
+      </section>
 
       {/* Avatar */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "20px 0" }}>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Chatpage.css";
 
@@ -14,6 +14,7 @@ function getInitials(name) {
 
 export default function GroupChatPage() {
   const { groupId } = useParams();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState("");
@@ -167,10 +168,21 @@ export default function GroupChatPage() {
   }
 
   return (
-    <div className="chat-page">
+    <div className="chat-page group-chat-page">
       <div className="chat-header">
+        <button
+          className="chat-back-button"
+          type="button"
+          onClick={() => navigate("/chat")}
+          aria-label="Back to chats"
+        >
+          ←
+        </button>
         <div className="chat-header-avatar">{getInitials(groupName)}</div>
-        <div className="chat-header-name">{groupName}</div>
+        <div className="chat-header-details">
+          <div className="chat-header-name">{groupName}</div>
+          <span>Group conversation</span>
+        </div>
       </div>
 
       <div className="message-list">

@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-do
 import { useCallback, useEffect, useState } from "react";
 import "../css/Layout.css";
 import Avatar from "../components/Avatar";
+import { getSavedTheme } from "../theme";
 const ChatIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
@@ -77,6 +78,34 @@ export default function Layout() {
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
   const [unreadCounts, setUnreadCounts] = useState({ messages: 0, notifications: 0 });
+  const mobilePageTitle = (() => {
+    const path = location.pathname;
+    if (path === "/feed") return "Feed";
+    if (path === "/notifications") return "Notifications";
+    if (path === "/settings") return "Settings";
+    if (path === "/profile") return "Profile";
+    if (path === "/create-group") return "Create group";
+    if (path === "/groups") return "Groups";
+    if (path === "/requests") return "Friend requests";
+    if (path === "/inbox") return "Messages";
+    if (path === "/new") return "New chat";
+    if (path === "/chat") return "Chats";
+    return "";
+  })();
+
+  useEffect(() => {
+    function syncTheme() {
+      document.documentElement.dataset.theme = getSavedTheme();
+    }
+
+    syncTheme();
+    window.addEventListener("app-theme-change", syncTheme);
+    window.addEventListener("storage", syncTheme);
+    return () => {
+      window.removeEventListener("app-theme-change", syncTheme);
+      window.removeEventListener("storage", syncTheme);
+    };
+  }, []);
 
   const refreshUnreadCounts = useCallback(async () => {
     try {
@@ -112,7 +141,7 @@ export default function Layout() {
     // { to: "/new", label: "New chat", icon: <AddUserIcon /> },
     // { to: "/requests", label: "Requests", icon: <BellIcon /> },
     { to: "/notifications", label: "Notifications", icon: <BellIcon />, unreadKey: "notifications" },
-    { to: "/groups", label: "Groups", icon: <GroupIcon /> },
+
     { to: "/settings", label: "Settings", icon: <SettingsIcon /> },
    
   ];
@@ -159,6 +188,15 @@ export default function Layout() {
       </aside>
 
       <div className="app-content">
+        {mobilePageTitle && (
+          <header className="mobile-app-header">
+            <span className="mobile-app-header-brand" aria-hidden="true">M</span>
+            <h1>{mobilePageTitle}</h1>
+            <Link to="/profile" className="mobile-app-header-profile" aria-label="Open profile">
+              <Avatar src={user?.avatar} name={user?.username} className="mobile-app-header-avatar" />
+            </Link>
+          </header>
+        )}
         <Outlet context={{ refreshUnreadCounts }} />
       </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Chatpage.css";
 import Avatar from "../components/Avatar";
@@ -12,7 +12,10 @@ export default function ChatPage() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [conversationSearch, setConversationSearch] = useState("");
+  const [activeListTab, setActiveListTab] = useState("friends");
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState("");
@@ -24,6 +27,7 @@ const typingTimeoutRef = useRef(null);
 const socketRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const addMenuRef = useRef(null);
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
 const otherMessage = messages.find((m) => m.username !== user?.username);
@@ -47,10 +51,55 @@ const otherAvatar = activeConversation?.other_user_avatar || otherMessage?.avata
       }
     }
 
+    async function fetchGroups() {
+      try {
+        const response = await fetch("https://dream-chat-app-1.onrender.com/api/groups", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setGroups(data);
+        data.forEach((group) => socket.emit("joinGroup", group.id));
+      } catch {
+        // Keep the groups already loaded if the API is temporarily unavailable.
+      }
+    }
+
     fetchConversations();
-    const intervalId = window.setInterval(fetchConversations, 15000);
-    return () => window.clearInterval(intervalId);
+    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+    socket.on("conversationCreated", fetchConversations);
+    socket.on("unreadMessagesChanged", fetchConversations);
+    socket.on("newGroupMessage", fetchGroups);
+    fetchGroups();
+    const intervalId = window.setInterval(() => {
+      fetchConversations();
+      fetchGroups();
+    }, 15000);
+    return () => {
+      window.clearInterval(intervalId);
+      socket.disconnect();
+    };
   }, [token]);
+
+  useEffect(() => {
+    if (!showAddMenu) return undefined;
+
+    function closeMenu(event) {
+      if (!addMenuRef.current?.contains(event.target)) {
+        setShowAddMenu(false);
+      }
+    }
+    function handleMenuKey(event) {
+      if (event.key === "Escape") setShowAddMenu(false);
+    }
+
+    document.addEventListener("mousedown", closeMenu);
+    document.addEventListener("keydown", handleMenuKey);
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", handleMenuKey);
+    };
+  }, [showAddMenu]);
 
   const markConversationRead = useCallback(async () => {
     try {
@@ -72,6 +121,13 @@ const otherAvatar = activeConversation?.other_user_avatar || otherMessage?.avata
           ? { ...message, read_at: readAt }
           : message
       ));
+      const conversationsResponse = await fetch(
+        "https://dream-chat-app-1.onrender.com/api/conversations",
+        { headers: { Authorization: "Bearer " + token } }
+      );
+      if (conversationsResponse.ok) {
+        setConversations(await conversationsResponse.json());
+      }
     } catch (err) {
       console.error("Failed to mark as read:", err);
     }
@@ -154,6 +210,18 @@ const otherAvatar = activeConversation?.other_user_avatar || otherMessage?.avata
 
   const filteredConversations = conversations.filter((conversation) =>
     conversation.other_username.toLowerCase().includes(conversationSearch.toLowerCase())
+  );
+  const filteredGroups = groups.filter((group) =>
+    group.name.toLowerCase().includes(conversationSearch.toLowerCase())
+  );
+  const filteredItems = activeListTab === "groups" ? filteredGroups : filteredConversations;
+  const unreadMessageCount = conversations.reduce(
+    (total, conversation) => total + (Number(conversation.unread_count) || 0),
+    0
+  );
+  const unreadGroupMessageCount = groups.reduce(
+    (total, group) => total + (Number(group.unread_count) || 0),
+    0
   );
 
   async function handleSend(e) {
@@ -261,26 +329,69 @@ useEffect(() => {
 }
 
   return (
-    <div className="chat-workspace">
+    <div className={`chat-workspace${conversationId ? " has-conversation" : ""}`}>
       <aside className="chat-list-panel" aria-label="Your conversations">
         <header className="chat-list-panel-header">
-          <h1>Chats</h1>
-          <button type="button" onClick={() => navigate("/new")} aria-label="Start a new chat">
-            +
-          </button>
+          <div className="chat-list-heading">
+            <h1>Chats</h1>
+            <span>Stay close to your people</span>
+          </div>
+          <div className="chat-add-menu" ref={addMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowAddMenu((isOpen) => !isOpen)}
+              aria-label="Create a chat or group"
+              aria-haspopup="menu"
+              aria-expanded={showAddMenu}
+            >
+              +
+            </button>
+            {showAddMenu && (
+              <div className="chat-add-menu-options" role="menu">
+                <Link to="/new" role="menuitem" onClick={() => setShowAddMenu(false)}>
+                  New chat
+                </Link>
+                <Link to="/create-group" role="menuitem" onClick={() => setShowAddMenu(false)}>
+                  Create group
+                </Link>
+              </div>
+            )}
+          </div>
         </header>
+        <div className="chat-list-tabs" role="tablist" aria-label="Chat lists">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeListTab === "friends"}
+            className={activeListTab === "friends" ? "active" : ""}
+            onClick={() => setActiveListTab("friends")}
+          >
+            Friends {unreadMessageCount > 0 && <span>{unreadMessageCount > 99 ? "99+" : unreadMessageCount}</span>}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeListTab === "groups"}
+            className={activeListTab === "groups" ? "active" : ""}
+            onClick={() => setActiveListTab("groups")}
+          >
+            Groups {unreadGroupMessageCount > 0 && (
+              <span>{unreadGroupMessageCount > 99 ? "99+" : unreadGroupMessageCount}</span>
+            )}
+          </button>
+        </div>
         <label className="chat-search">
           <span aria-hidden="true">⌕</span>
           <input
             type="search"
             value={conversationSearch}
             onChange={(event) => setConversationSearch(event.target.value)}
-            placeholder="Search or start a new chat"
-            aria-label="Search conversations"
+            placeholder={activeListTab === "groups" ? "Search groups" : "Search friends"}
+            aria-label={activeListTab === "groups" ? "Search groups" : "Search friends"}
           />
         </label>
         <div className="chat-conversation-list">
-          {filteredConversations.map((conversation) => {
+          {activeListTab === "friends" && filteredConversations.map((conversation) => {
             const unreadCount = Number(conversation.unread_count) || 0;
             const isActive = String(conversation.conversation_id) === String(conversationId);
 
@@ -315,9 +426,39 @@ useEffect(() => {
               </button>
             );
           })}
-          {filteredConversations.length === 0 && (
+          {activeListTab === "groups" && filteredGroups.map((group) => {
+            const messageCount = Number(group.message_count) || 0;
+            return (
+              <button
+                type="button"
+                key={group.id}
+                className="chat-conversation-row chat-group-row"
+                onClick={() => navigate(`/group/${group.id}`)}
+              >
+                <span className="chat-list-avatar chat-group-avatar" aria-hidden="true">
+                  {group.name.slice(0, 2).toUpperCase()}
+                </span>
+                <span className="chat-conversation-copy">
+                  <span className="chat-conversation-topline">
+                    <strong>{group.name}</strong>
+                    {Number(group.unread_count) > 0 && (
+                      <span className="chat-conversation-badge">
+                        {Number(group.unread_count) > 99 ? "99+" : group.unread_count}
+                      </span>
+                    )}
+                  </span>
+                  <span className="chat-conversation-preview">
+                    {messageCount === 0 ? "No messages yet" : `${messageCount} message${messageCount === 1 ? "" : "s"}`}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+          {filteredItems.length === 0 && (
             <p className="chat-list-empty">
-              {conversationSearch ? "No matching chats." : "Your conversations will appear here."}
+              {conversationSearch
+                ? `No matching ${activeListTab === "groups" ? "groups" : "friends"}.`
+                : activeListTab === "groups" ? "Your groups will appear here." : "Your conversations will appear here."}
             </p>
           )}
         </div>
@@ -325,7 +466,7 @@ useEffect(() => {
 
       <section className="chat-page" aria-label={conversationId ? `Chat with ${otherPerson || "your contact"}` : "Morphues Web welcome"}>
         <header className="chat-header">
-          <button className="chat-back-button" type="button" onClick={() => navigate("/inbox?list=1")} aria-label="Back to messages">
+          <button className="chat-back-button" type="button" onClick={() => navigate("/chat")} aria-label="Back to chats">
             ←
           </button>
           {conversationId ? (
@@ -335,7 +476,7 @@ useEffect(() => {
           )}
           <div className="chat-header-details">
             <div className="chat-header-name">{otherPerson || "Morphues Web"}</div>
-            <span>{otherPerson ? "Conversation" : "Your conversations, all in one place"}</span>
+            <span>{otherPerson ? "Direct message" : "Your conversations, all in one place"}</span>
           </div>
         </header>
 
