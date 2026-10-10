@@ -1,0 +1,71 @@
+.user-avatar-action {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+.user-avatar-action-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.user-avatar-action-trigger:focus-visible {
+  outline: 2px solid #528cf5;
+  outline-offset: 3px;
+}
+
+.user-avatar-action-menu {
+  position: fixed;
+  z-index: 120;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  color: var(--theme-text, #f3f4f6);
+  background: var(--theme-surface, #18181b);
+  border: 1px solid var(--theme-border, #303137);
+  border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3);
+}
+
+.user-avatar-action-menu > strong {
+  overflow: hidden;
+  padding: 7px 9px 8px;
+  color: var(--theme-muted, #9ca3af);
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-avatar-action-menu > button {
+  width: 100%;
+  padding: 9px;
+  color: var(--theme-text, #f3f4f6);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.user-avatar-action-menu > button:hover,
+.user-avatar-action-menu > button:focus-visible {
+  background: var(--theme-surface-raised, #25272d);
+  outline: none;
+}
+
+.chat-conversation-row .user-avatar-action-trigger {
+  align-self: center;
+}

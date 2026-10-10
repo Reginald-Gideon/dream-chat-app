@@ -204,6 +204,12 @@ html, body {
     padding-bottom: 64px; /* room for the fixed tab bar */
   }
 
+  .app-content.chat-layout-content {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .mobile-app-header {
     position: sticky;
     top: 0;

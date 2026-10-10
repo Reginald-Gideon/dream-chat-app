@@ -86,6 +86,119 @@ app.get('/api/users', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/users/:userId/profile', authMiddleware, async (req, res) => {
+  const profileUserId = Number(req.params.userId);
+  if (!Number.isInteger(profileUserId) || profileUserId <= 0) {
+    return res.status(400).json({ message: 'Invalid user ID.' });
+  }
+
+  try {
+    if (profileUserId !== Number(req.userId)) {
+      const friendship = await pool.query(
+        `SELECT 1 FROM friendships
+         WHERE ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
+           AND status = 'accepted'`,
+        [req.userId, profileUserId]
+      );
+      if (friendship.rows.length === 0) {
+        return res.status(403).json({ message: 'You can only view a friend’s profile.' });
+      }
+    }
+
+    const [profileResult, postsResult, statusesResult, friendsResult] = await Promise.all([
+      pool.query(
+        'SELECT id, username, avatar FROM users WHERE id = $1',
+        [profileUserId]
+      ),
+      pool.query(
+        `SELECT p.id, p.caption, p.image_url, p.created_at,
+                u.id AS user_id, u.username, u.avatar,
+                COUNT(DISTINCT pl.user_id)::int AS like_count,
+                COUNT(DISTINCT pc.id)::int AS comment_count,
+                COALESCE(BOOL_OR(pl.user_id = $1), FALSE) AS liked_by_me
+         FROM posts p
+         JOIN users u ON u.id = p.user_id
+         LEFT JOIN post_likes pl ON pl.post_id = p.id
+         LEFT JOIN post_comments pc ON pc.post_id = p.id
+         WHERE p.user_id = $2
+         GROUP BY p.id, u.id
+         ORDER BY p.created_at DESC`,
+        [req.userId, profileUserId]
+      ),
+      pool.query(
+        `SELECT s.id, s.content, s.image_url, s.background_color, s.created_at,
+                u.id AS user_id, u.username, u.avatar,
+                EXISTS (
+                  SELECT 1 FROM status_views sv
+                  WHERE sv.status_id = s.id AND sv.viewer_id = $1
+                ) AS viewed_by_me
+         FROM statuses s
+         JOIN users u ON u.id = s.user_id
+         WHERE s.user_id = $2 AND s.created_at > NOW() - INTERVAL '24 hours'
+         ORDER BY s.created_at DESC`,
+        [req.userId, profileUserId]
+      ),
+      pool.query(
+        `SELECT u.id, u.username, u.avatar
+         FROM friendships f
+         JOIN users u ON u.id = CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END
+         WHERE (f.requester_id = $1 OR f.addressee_id = $1) AND f.status = 'accepted'
+         ORDER BY u.username`,
+        [profileUserId]
+      ),
+    ]);
+
+    if (profileResult.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    res.json({
+      user: profileResult.rows[0],
+      posts: postsResult.rows,
+      statuses: statusesResult.rows,
+      friends: friendsResult.rows,
+      friendCount: friendsResult.rows.length,
+    });
+  } catch (err) {
+    console.error('Get user profile error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.get('/api/users/:userId/friends', authMiddleware, async (req, res) => {
+  const profileUserId = Number(req.params.userId);
+  if (!Number.isInteger(profileUserId) || profileUserId <= 0) {
+    return res.status(400).json({ message: 'Invalid user ID.' });
+  }
+
+  try {
+    if (profileUserId !== Number(req.userId)) {
+      const friendship = await pool.query(
+        `SELECT 1 FROM friendships
+         WHERE ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
+           AND status = 'accepted'`,
+        [req.userId, profileUserId]
+      );
+      if (friendship.rows.length === 0) {
+        return res.status(403).json({ message: 'You can only view a friend’s friends.' });
+      }
+    }
+
+    const friends = await pool.query(
+      `SELECT u.id, u.username, u.avatar
+       FROM friendships f
+       JOIN users u ON u.id = CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END
+       WHERE (f.requester_id = $1 OR f.addressee_id = $1) AND f.status = 'accepted'
+       ORDER BY u.username`,
+      [profileUserId]
+    );
+    res.json(friends.rows);
+  } catch (err) {
+    console.error('Get user friends error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
 // --- CONVERSATIONS ---
 
 app.post('/api/conversations', authMiddleware, async (req, res) => {
@@ -331,6 +444,30 @@ app.get('/api/friends', authMiddleware, async (req, res) => {
     res.json(friends.rows);
   } catch (err) {
     console.error('Get friends error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.delete('/api/friends/:friendId', authMiddleware, async (req, res) => {
+  const friendId = Number(req.params.friendId);
+  if (!Number.isInteger(friendId) || friendId <= 0 || friendId === Number(req.userId)) {
+    return res.status(400).json({ message: 'Invalid friend ID.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM friendships
+       WHERE ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
+         AND status = 'accepted'
+       RETURNING id`,
+      [req.userId, friendId]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Friendship not found.' });
+    }
+    res.json({ message: 'Friend removed.' });
+  } catch (err) {
+    console.error('Remove friend error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });

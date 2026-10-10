@@ -33,6 +33,11 @@
   background: conic-gradient(from 215deg, #e7a13c, #cf486c, #7c55b5, #e7a13c);
 }
 
+.status-ring-has-status {
+  background: conic-gradient(from 215deg, #e7a13c, #cf486c, #7c55b5, #e7a13c);
+  box-shadow: 0 0 12px rgba(207, 72, 108, 0.28);
+}
+
 .status-ring img,
 .status-avatar-fallback {
   width: 100%;

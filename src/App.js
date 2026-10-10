@@ -29,6 +29,7 @@ function App() {
 
 <Route path='/settings' element={<SettingsPage />} />
 <Route path="/profile" element={<ProfilePage />} />
+<Route path="/profile/:userId" element={<ProfilePage />} />
 <Route path="/create-group" element={<CreateGroup />} />
 <Route path="/groups" element={<GroupsPage />} />
 <Route path="/group/:groupId" element={<GroupChatPage />} />

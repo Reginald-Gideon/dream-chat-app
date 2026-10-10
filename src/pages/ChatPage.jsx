@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Chatpage.css";
 import Avatar from "../components/Avatar";
+import UserAvatarMenu from "../components/UserAvatarMenu";
 function formatTime(timestamp) {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -36,6 +37,7 @@ const activeConversation = conversations.find((conversation) =>
 );
 const otherPerson = activeConversation?.other_username || otherMessage?.username;
 const otherAvatar = activeConversation?.other_user_avatar || otherMessage?.avatar;
+const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
 
   useEffect(() => {
     async function fetchConversations() {
@@ -396,34 +398,44 @@ useEffect(() => {
             const isActive = String(conversation.conversation_id) === String(conversationId);
 
             return (
-              <button
-                type="button"
+              <div
                 key={conversation.conversation_id}
                 className={`chat-conversation-row${isActive ? " active" : ""}${unreadCount ? " unread" : ""}`}
-                onClick={() => navigate(`/chat/${conversation.conversation_id}`)}
               >
-                <Avatar
+                <UserAvatarMenu
+                  userId={conversation.other_user_id}
                   src={conversation.other_user_avatar}
                   name={conversation.other_username}
-                  className="chat-list-avatar"
-                />
-                <span className="chat-conversation-copy">
-                  <span className="chat-conversation-topline">
-                    <strong>{conversation.other_username}</strong>
-                    {conversation.last_message_at && (
-                      <time>{formatTime(conversation.last_message_at)}</time>
-                    )}
+                >
+                  <Avatar
+                    src={conversation.other_user_avatar}
+                    name={conversation.other_username}
+                    className="chat-list-avatar"
+                  />
+                </UserAvatarMenu>
+                <button
+                  type="button"
+                  className="chat-conversation-main"
+                  onClick={() => navigate(`/chat/${conversation.conversation_id}`)}
+                >
+                  <span className="chat-conversation-copy">
+                    <span className="chat-conversation-topline">
+                      <strong>{conversation.other_username}</strong>
+                      {conversation.last_message_at && (
+                        <time>{formatTime(conversation.last_message_at)}</time>
+                      )}
+                    </span>
+                    <span className={`chat-conversation-preview${conversation.last_message_unread ? " unread" : ""}`}>
+                      {conversation.last_message || "Start a conversation"}
+                    </span>
                   </span>
-                  <span className={`chat-conversation-preview${conversation.last_message_unread ? " unread" : ""}`}>
-                    {conversation.last_message || "Start a conversation"}
-                  </span>
-                </span>
-                {unreadCount > 0 && (
-                  <span className="chat-conversation-badge">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
-              </button>
+                  {unreadCount > 0 && (
+                    <span className="chat-conversation-badge">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+              </div>
             );
           })}
           {activeListTab === "groups" && filteredGroups.map((group) => {
@@ -469,7 +481,11 @@ useEffect(() => {
           <button className="chat-back-button" type="button" onClick={() => navigate("/chat")} aria-label="Back to chats">
             ←
           </button>
-          {conversationId ? (
+          {conversationId && otherUserId ? (
+            <UserAvatarMenu userId={otherUserId} src={otherAvatar} name={otherPerson}>
+              <Avatar src={otherAvatar} name={otherPerson} className="chat-header-avatar" />
+            </UserAvatarMenu>
+          ) : conversationId ? (
             <Avatar src={otherAvatar} name={otherPerson} className="chat-header-avatar" />
           ) : (
             <span className="chat-header-brand-mark" aria-hidden="true">M</span>

@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { resizeImage } from "../resizeImage";
+import { useLocation } from "react-router-dom";
+import UserAvatarMenu from "../components/UserAvatarMenu";
 import "../css/StatusBar.css";
 
 const COLORS = ["#4C3BCF", "#0F766E", "#B91C63", "#1D4ED8", "#171717"];
@@ -9,7 +11,9 @@ function getInitials(name) {
 }
 
 export default function StatusBar() {
+  const location = useLocation();
   const [statuses, setStatuses] = useState([]);
+  const [statusesLoaded, setStatusesLoaded] = useState(false);
   const [viewerGroup, setViewerGroup] = useState(null); // array of that user's statuses being viewed
   const [viewerIndex, setViewerIndex] = useState(0);
 
@@ -22,6 +26,8 @@ export default function StatusBar() {
   const [replySending, setReplySending] = useState(false);
   const [replyMessage, setReplyMessage] = useState("");
   const [statusError, setStatusError] = useState("");
+  const [statusLinkMessage, setStatusLinkMessage] = useState("");
+  const handledStatusUser = useRef("");
   const fileInputRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -33,8 +39,11 @@ export default function StatusBar() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) setStatuses(await response.json());
+      else setStatusError("Could not load statuses.");
     } catch {
-      // non-critical
+      setStatusError("Could not load statuses.");
+    } finally {
+      setStatusesLoaded(true);
     }
   }, [token]);
 
@@ -42,24 +51,24 @@ export default function StatusBar() {
     fetchStatuses();
   }, [fetchStatuses]);
 
-  // group flat status list by user, most recent first within each group
-  const grouped = statuses.reduce((acc, s) => {
-    if (!acc[s.user_id]) acc[s.user_id] = { user_id: s.user_id, username: s.username, avatar: s.avatar, items: [] };
-    acc[s.user_id].items.push(s);
-    return acc;
-  }, {});
-  const groups = Object.values(grouped);
+  const groups = useMemo(() => {
+    const grouped = statuses.reduce((acc, status) => {
+      if (!acc[status.user_id]) {
+        acc[status.user_id] = {
+          user_id: status.user_id,
+          username: status.username,
+          avatar: status.avatar,
+          items: [],
+        };
+      }
+      acc[status.user_id].items.push(status);
+      return acc;
+    }, {});
+    return Object.values(grouped);
+  }, [statuses]);
+  const ownStatusGroup = groups.find((group) => Number(group.user_id) === Number(user?.id));
 
-  async function openGroup(group) {
-    setViewerGroup(group.items);
-    setViewerIndex(0);
-    setReplyText("");
-    setReplyMessage("");
-    setStatusError("");
-    if (Number(group.user_id) !== Number(user?.id)) markViewed(group.items[0].id);
-  }
-
-  async function markViewed(statusId) {
+  const markViewed = useCallback(async (statusId) => {
     const status = statuses.find((item) => item.id === statusId);
     if (Number(status?.user_id) === Number(user?.id)) return;
 
@@ -68,11 +77,35 @@ export default function StatusBar() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      setStatuses((prev) => prev.map((s) => (s.id === statusId ? { ...s, viewed_by_me: true } : s)));
+      setStatuses((prev) => prev.map((item) => (
+        item.id === statusId ? { ...item, viewed_by_me: true } : item
+      )));
     } catch {
-      // non-critical
+      // Marking a status as viewed is non-critical.
     }
-  }
+  }, [statuses, token, user?.id]);
+
+  const openGroup = useCallback((group) => {
+    setViewerGroup(group.items);
+    setViewerIndex(0);
+    setReplyText("");
+    setReplyMessage("");
+    setStatusError("");
+    if (Number(group.user_id) !== Number(user?.id)) markViewed(group.items[0].id);
+  }, [markViewed, user?.id]);
+
+  useEffect(() => {
+    const requestedUserId = new URLSearchParams(location.search).get("statusUser");
+    if (!requestedUserId || !statusesLoaded || handledStatusUser.current === requestedUserId) return;
+    handledStatusUser.current = requestedUserId;
+    const requestedGroup = groups.find((group) => String(group.user_id) === requestedUserId);
+    if (requestedGroup) {
+      setStatusLinkMessage("");
+      openGroup(requestedGroup);
+    } else {
+      setStatusLinkMessage("This user has no active status to view.");
+    }
+  }, [groups, location.search, openGroup, statusesLoaded]);
 
   function nextStory() {
     if (viewerIndex + 1 < viewerGroup.length) {
@@ -207,7 +240,7 @@ export default function StatusBar() {
             else setComposerOpen(true);
           }}
         >
-          <div className="status-ring status-ring-self">
+          <div className={`status-ring status-ring-self${ownStatusGroup ? " status-ring-has-status" : ""}`}>
             {user?.avatar ? (
               <img src={user.avatar} alt="" />
             ) : (
@@ -229,21 +262,23 @@ export default function StatusBar() {
         </div>
 
         {groups.map((g) => {
-          const allViewed = g.items.every((s) => s.viewed_by_me);
           return (
             <div className="status-item" key={g.user_id} onClick={() => openGroup(g)}>
-              <div className={`status-ring${allViewed ? "" : " status-ring-fresh"}`}>
-                {g.avatar ? (
-                  <img src={g.avatar} alt="" />
-                ) : (
-                  <div className="status-avatar-fallback">{getInitials(g.username)}</div>
-                )}
-              </div>
+              <UserAvatarMenu userId={g.user_id} src={g.avatar} name={g.username}>
+                <div className="status-ring status-ring-has-status">
+                  {g.avatar ? (
+                    <img src={g.avatar} alt="" />
+                  ) : (
+                    <div className="status-avatar-fallback">{getInitials(g.username)}</div>
+                  )}
+                </div>
+              </UserAvatarMenu>
               <span className="status-name">{g.username}</span>
             </div>
           );
         })}
       </div>
+      {statusLinkMessage && <p className="status-feedback" role="status">{statusLinkMessage}</p>}
 
       {/* --- Full-screen story viewer --- */}
       {viewerGroup && (

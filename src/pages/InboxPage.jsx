@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Inboxpage.css";
 import Avatar from "../components/Avatar";
+import UserAvatarMenu from "../components/UserAvatarMenu";
 
 
 export default function InboxPage() {
@@ -97,30 +98,33 @@ socket.on("connect_error", (err) => {
 
           return (
           <li key={c.conversation_id}>
-            <button
+            <div
               className={`inbox-row${unreadCount ? " inbox-row-unread" : ""}`}
-              onClick={() => navigate(`/chat/${c.conversation_id}`)}
             >
-              <Avatar src={c.other_avatar} name={c.other_username} className="inbox-avatar" />
+              <UserAvatarMenu userId={c.other_user_id} src={c.other_avatar} name={c.other_username}>
+                <Avatar src={c.other_avatar} name={c.other_username} className="inbox-avatar" />
+              </UserAvatarMenu>
                 {onlineUserIds.includes(c.other_user_id) && <span className="online-dot" />}
               
-              <div className="inbox-row-content">
-                <div className="inbox-row-name">{c.other_username}</div>
-                <div className={`inbox-row-preview${c.last_message_unread ? " inbox-row-preview-unread" : ""}`}>
+              <button type="button" className="inbox-row-main" onClick={() => navigate(`/chat/${c.conversation_id}`)}>
+              <span className="inbox-row-content">
+                <span className="inbox-row-name">{c.other_username}</span>
+                <span className={`inbox-row-preview${c.last_message_unread ? " inbox-row-preview-unread" : ""}`}>
                   {c.last_message || "No messages yet"}
-                </div>
-              </div>
+                </span>
+              </span>
               {c.last_message_at && (
-                <div className="inbox-row-time">
+                <span className="inbox-row-time">
                   {new Date(c.last_message_at).toLocaleDateString([], { month: "short", day: "numeric" })}
-                </div>
+                </span>
               )}
               {unreadCount > 0 && (
                 <span className="inbox-unread-count" aria-label={`${unreadCount} unread messages`}>
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
-            </button>
+              </button>
+            </div>
           </li>
           );
         })}

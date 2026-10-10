@@ -74,7 +74,7 @@ export default function Layout() {
     if (path === "/feed") return "Feed";
     if (path === "/notifications") return "Notifications";
     if (path === "/settings") return "Settings";
-    if (path === "/profile") return "Profile";
+    if (path === "/profile" || path.startsWith("/profile/")) return "Profile";
     if (path === "/create-group") return "Create group";
     if (path === "/groups") return "Groups";
     if (path === "/requests") return "Friend requests";
@@ -83,6 +83,9 @@ export default function Layout() {
     if (path === "/chat") return "Chats";
     return "";
   })();
+  const isChatLayout = location.pathname === "/chat"
+    || location.pathname.startsWith("/chat/")
+    || location.pathname.startsWith("/group/");
 
   useEffect(() => {
     function syncTheme() {
@@ -180,7 +183,7 @@ export default function Layout() {
         </div>
       </aside>
 
-      <div className="app-content">
+      <div className={`app-content${isChatLayout ? " chat-layout-content" : ""}${mobilePageTitle ? " has-mobile-page-header" : ""}`}>
         {mobilePageTitle && (
           <header className="mobile-app-header">
             <span className="mobile-app-header-brand" aria-hidden="true">M</span>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { resizeImage } from "../resizeImage";
+import UserAvatarMenu from "../components/UserAvatarMenu";
 import "../css/Feed.css";
 import StatusBar from "./Statusbar.jsx";
 function Icon({ name, size = 24, filled = false }) {
@@ -304,7 +305,9 @@ export default function Feed() {
                 >
                   <header className="post-header">
                     <div className="post-author">
-                      <Avatar src={post.avatar} name={post.username} className="post-avatar" />
+                      <UserAvatarMenu userId={post.user_id} src={post.avatar} name={post.username}>
+                        <Avatar src={post.avatar} name={post.username} className="post-avatar" />
+                      </UserAvatarMenu>
                       <div className="post-author-copy">
                         <strong>{post.username}</strong>
                         <span>{timeAgo(post.created_at)}</span>
@@ -398,7 +401,9 @@ export default function Feed() {
               )}
               {friends.map((f) => (
                 <div className="suggestion-row" key={f.id}>
-                  <Avatar src={f.avatar} name={f.username} className="post-avatar" style={{ width: 36, height: 36 }} />
+                  <UserAvatarMenu userId={f.id} src={f.avatar} name={f.username}>
+                    <Avatar src={f.avatar} name={f.username} className="post-avatar" />
+                  </UserAvatarMenu>
                   <div className="suggestion-copy">
                     <strong>{f.username}</strong>
                   </div>
