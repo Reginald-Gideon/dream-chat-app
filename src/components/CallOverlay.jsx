@@ -143,6 +143,7 @@ export default function CallOverlay() {
       return;
     }
 
+    console.log("[call] sending invite to", target);
     socketRef.current.emit("call:invite", { toUserId: target.id });
 
     // Give up after 30 seconds of ringing.
@@ -284,6 +285,13 @@ export default function CallOverlay() {
     if (!token) return;
     const socket = io(API, { auth: { token } });
     socketRef.current = socket;
+
+    // --- debug logging (safe to delete later) ---
+    socket.on("connect", () => console.log("[call] socket connected", socket.id));
+    socket.on("connect_error", (e) => console.log("[call] socket error:", e.message));
+    socket.onAny((event, ...args) => {
+      if (event.startsWith("call:")) console.log("[call] received", event, args);
+    });
 
     socket.on("call:incoming", (d) => actions.current.onIncoming(d));
     socket.on("call:accepted", (d) => actions.current.onAccepted(d));

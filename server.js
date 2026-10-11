@@ -1388,6 +1388,7 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
   // Caller rings someone
   socket.on('call:invite', async ({ toUserId }) => {
     toUserId = Number(toUserId);
+    console.log('[call] invite received from', userId, 'to', toUserId);
     if (!toUserId || toUserId === userId) return;
     try {
       const friendship = await pool.query(
@@ -1397,12 +1398,15 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
         [userId, toUserId]
       );
       if (friendship.rows.length === 0) {
+        console.log('[call] blocked: not friends');
         return socket.emit('call:unavailable', { reason: 'not-friends' });
       }
       if (!onlineUsers.has(toUserId)) {
+        console.log('[call] blocked: callee has no open socket');
         return socket.emit('call:unavailable', { reason: 'offline' });
       }
       if (callState.has(userId) || callState.has(toUserId)) {
+        console.log('[call] blocked: someone is busy');
         return socket.emit('call:busy');
       }
       // (no await between the check above and these two lines, so two people
@@ -1411,6 +1415,7 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
       callState.set(toUserId, { peerId: userId, callerId: userId, socketId: null });
 
       const me = await pool.query('SELECT username, avatar FROM users WHERE id = $1', [userId]);
+      console.log('[call] ringing user', toUserId);
       io.to(`user:${toUserId}`).emit('call:incoming', {
         fromUserId: userId,
         fromUsername: me.rows[0].username,
