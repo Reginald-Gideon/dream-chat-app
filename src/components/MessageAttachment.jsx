@@ -2,69 +2,120 @@ import { useEffect, useRef, useState } from "react";
 
 const API_URL = "https://dream-chat-app-1.onrender.com";
 
+async function fetchAttachment(messageId, token) {
+  const response = await fetch(`${API_URL}/api/messages/${messageId}/attachment`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.message || "Could not load this attachment.");
+  }
+  return response.blob();
+}
+
+function formatAudioTime(value) {
+  const seconds = Number.isFinite(value) ? Math.floor(value) : 0;
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function formatFileSize(value) {
+  const size = Number(value);
+  return size >= 1024 * 1024
+    ? `${(size / (1024 * 1024)).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
 export default function MessageAttachment({ attachment, messageId, token }) {
   const [previewUrl, setPreviewUrl] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(attachment));
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [playWhenReady, setPlayWhenReady] = useState(false);
   const audioRef = useRef(null);
   const isAudio = attachment?.mime_type?.startsWith("audio/");
-  const isVisual = attachment?.mime_type?.startsWith("image/") || attachment?.mime_type?.startsWith("video/");
-
-  useEffect(() => () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-  }, [previewUrl]);
-
-  useEffect(() => () => audioRef.current?.pause(), []);
+  const isImage = attachment?.mime_type?.startsWith("image/");
+  const isVideo = attachment?.mime_type?.startsWith("video/");
+  const isPdf = attachment?.mime_type === "application/pdf";
 
   useEffect(() => {
-    if (!previewUrl || !isAudio || !playWhenReady || !audioRef.current) return;
-    setPlayWhenReady(false);
-    audioRef.current.play().catch(() => {
-      setError("Audio is ready. Press play to listen.");
-    });
-  }, [isAudio, playWhenReady, previewUrl]);
+    if (!attachment) return undefined;
+    const controller = new AbortController();
+    const audioElement = audioRef.current;
+    let active = true;
+    let objectUrl = "";
 
-  async function openAttachment(download = false) {
     setLoading(true);
     setError("");
-    try {
-      const response = await fetch(`${API_URL}/api/messages/${messageId}/attachment`, {
-        headers: { Authorization: `Bearer ${token}` },
+    setPreviewUrl("");
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(false);
+
+    fetch(`${API_URL}/api/messages/${messageId}/attachment`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result.message || "Could not load this attachment.");
+        }
+        return response.blob();
+      })
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setPreviewUrl(objectUrl);
+      })
+      .catch((loadError) => {
+        if (loadError.name !== "AbortError" && active) {
+          setError(loadError.message || "Could not load this attachment.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
-      const data = await response.blob();
-      if (!response.ok) {
-        const message = await data.text();
-        throw new Error(message || "Could not load this attachment.");
+
+    return () => {
+      active = false;
+      controller.abort();
+      audioElement?.pause();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [attachment, messageId, token]);
+
+  if (!attachment) return null;
+
+  async function downloadAttachment() {
+    setDownloading(true);
+    setError("");
+    let temporaryUrl = "";
+    try {
+      let url = previewUrl;
+      if (!url) {
+        const blob = await fetchAttachment(messageId, token);
+        temporaryUrl = URL.createObjectURL(blob);
+        url = temporaryUrl;
       }
-      const url = URL.createObjectURL(data);
-      if (download || (!isVisual && !isAudio)) {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = attachment.file_name;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } else {
-        setPreviewUrl(url);
-        if (isAudio) setPlayWhenReady(true);
-      }
-    } catch (loadError) {
-      setError(loadError.message || "Could not load this attachment.");
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.file_name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (downloadError) {
+      setError(downloadError.message || "Could not download this attachment.");
     } finally {
-      setLoading(false);
+      if (temporaryUrl) window.setTimeout(() => URL.revokeObjectURL(temporaryUrl), 1000);
+      setDownloading(false);
     }
   }
 
   async function toggleAudioPlayback() {
-    if (!audioRef.current) {
-      await openAttachment(false);
-      return;
-    }
+    if (!audioRef.current) return;
     if (audioRef.current.paused) {
       try {
         await audioRef.current.play();
@@ -77,19 +128,25 @@ export default function MessageAttachment({ attachment, messageId, token }) {
     }
   }
 
-  if (!attachment) return null;
-  const size = Number(attachment.file_size);
-  const sizeLabel = size >= 1024 * 1024
-    ? `${(size / (1024 * 1024)).toFixed(1)} MB`
-    : `${Math.max(1, Math.round(size / 1024))} KB`;
-
   return (
     <div className="message-attachment">
-      {previewUrl && attachment.mime_type.startsWith("image/") && (
+      {loading && <span className="message-attachment-status">Loading attachment…</span>}
+      {error && <small className="message-attachment-error" role="alert">{error}</small>}
+
+      {previewUrl && isImage && (
         <img className="message-attachment-preview" src={previewUrl} alt={attachment.file_name} />
       )}
-      {previewUrl && attachment.mime_type.startsWith("video/") && (
-        <video className="message-attachment-preview" src={previewUrl} controls preload="metadata" />
+      {previewUrl && isVideo && (
+        <video className="message-attachment-preview" src={previewUrl} controls preload="metadata">
+          Your browser does not support video playback.
+        </video>
+      )}
+      {previewUrl && isPdf && (
+        <iframe
+          className="message-document-preview"
+          src={previewUrl}
+          title={`Preview of ${attachment.file_name}`}
+        />
       )}
       {previewUrl && isAudio && (
         <div className="message-audio-player">
@@ -111,7 +168,6 @@ export default function MessageAttachment({ attachment, messageId, token }) {
             aria-label={isPlaying ? "Pause audio" : "Play audio"}
             title={isPlaying ? "Pause audio" : "Play audio"}
             onClick={toggleAudioPlayback}
-            disabled={loading}
           >
             {isPlaying ? (
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zM15 5h3v14h-3z" /></svg>
@@ -139,45 +195,28 @@ export default function MessageAttachment({ attachment, messageId, token }) {
           </span>
         </div>
       )}
-      {!previewUrl && !isAudio && (
+
+      <div className="message-attachment-file">
+        <span className="message-attachment-icon" aria-hidden="true">
+          {isAudio ? "♫" : isImage || isVideo ? "▧" : "▤"}
+        </span>
+        <span className="message-attachment-details">
+          <strong>{attachment.file_name}</strong>
+          <small>{formatFileSize(attachment.file_size)}{loading ? " · Loading" : ""}</small>
+        </span>
         <button
           type="button"
-          className="message-attachment-download"
-          onClick={() => openAttachment(!isVisual)}
-          disabled={loading}
+          className="message-attachment-download-button"
+          onClick={downloadAttachment}
+          disabled={downloading}
+          aria-label={`Download ${attachment.file_name}`}
         >
-          <span className="message-attachment-icon" aria-hidden="true">↧</span>
-          <span className="message-attachment-details">
-            <strong>{attachment.file_name}</strong>
-            <small>{loading ? "Loading…" : `${sizeLabel} · ${isVisual ? "Open" : "Download"}`}</small>
-          </span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <path d="m7 10 5 5 5-5M12 15V3" />
+          </svg>
         </button>
-      )}
-      {!previewUrl && isAudio && (
-        <button
-          type="button"
-          className="message-attachment-download"
-          onClick={() => openAttachment(false)}
-          disabled={loading}
-        >
-          <span className="message-attachment-icon" aria-hidden="true">♫</span>
-          <span className="message-attachment-details">
-            <strong>{attachment.file_name}</strong>
-            <small>{loading ? "Loading…" : `${sizeLabel} · Play / pause`}</small>
-          </span>
-        </button>
-      )}
-      {previewUrl && isVisual && (
-        <button type="button" className="message-attachment-download" onClick={() => openAttachment(true)} disabled={loading}>
-          Download original
-        </button>
-      )}
-      {error && <small className="message-attachment-error" role="alert">{error}</small>}
+      </div>
     </div>
   );
-}
-
-function formatAudioTime(value) {
-  const seconds = Number.isFinite(value) ? Math.floor(value) : 0;
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }

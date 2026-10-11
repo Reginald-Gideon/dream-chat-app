@@ -999,7 +999,7 @@
   margin-top: 8px;
 }
 
-.message-attachment-download {
+.message-attachment-file {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1009,12 +1009,34 @@
   background: rgba(0, 0, 0, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 10px;
-  font: inherit;
-  text-align: left;
+}
+
+.message-attachment-status {
+  display: block;
+  margin: 0 0 6px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+}
+
+.message-attachment-download-button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
   cursor: pointer;
 }
 
-.message-attachment-download:disabled {
+.message-attachment-download-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.message-attachment-download-button:disabled {
   opacity: 0.65;
   cursor: wait;
 }
@@ -1050,6 +1072,16 @@
   max-height: 360px;
   border-radius: 10px;
   object-fit: contain;
+}
+
+.message-document-preview {
+  display: block;
+  width: min(100%, 360px);
+  height: 420px;
+  margin: 0 0 8px;
+  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
 }
 
 .message-attachment-error {
