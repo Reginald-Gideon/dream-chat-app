@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Chatpage.css";
+import AttachmentPicker from "../components/AttachmentPicker";
+import MessageAttachment from "../components/MessageAttachment";
+import VoiceNoteButton from "../components/VoiceNoteButton";
+import { MAX_ATTACHMENT_SIZE, readFileAsDataUrl } from "../attachmentUtils";
+
+const API_URL = "https://dream-chat-app-1.onrender.com";
 
 function formatTime(timestamp) {
   const date = new Date(timestamp);
@@ -22,6 +28,7 @@ export default function GroupChatPage() {
   const [editingId, setEditingId] = useState(null);
   const [editContent, setEditContent] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
+  const [sendingAttachment, setSendingAttachment] = useState(false);
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -122,6 +129,40 @@ export default function GroupChatPage() {
       setReplyingTo(null);
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function handleAttachmentSelected(file, attachmentLabel) {
+    if (!file) return;
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setError("Attachments must be 10 MB or smaller.");
+      return;
+    }
+
+    setError("");
+    setSendingAttachment(true);
+    try {
+      const data = await readFileAsDataUrl(file);
+      const response = await fetch(`${API_URL}/api/groups/${groupId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content: newMessage.trim() || attachmentLabel || `📎 ${file.name}`,
+          replyToId: replyingTo ? replyingTo.id : null,
+          attachment: { file_name: file.name, mime_type: file.type || "application/octet-stream", data },
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Failed to send attachment.");
+      setNewMessage("");
+      setReplyingTo(null);
+    } catch (uploadError) {
+      setError(uploadError.message || "Failed to send attachment.");
+    } finally {
+      setSendingAttachment(false);
     }
   }
 
@@ -227,20 +268,23 @@ export default function GroupChatPage() {
                     {msg.content}
                     {msg.edited_at && <span className="message-edited-tag"> (edited)</span>}
                   </span>
+                  <MessageAttachment attachment={msg.attachment} messageId={msg.id} token={token} />
                   <span className="message-time">{formatTime(msg.created_at)}</span>
 
                   <div className="message-actions">
                     <button onClick={() => startReply(msg)}>Reply</button>
                     {isMine && (
                       <>
-                        <button
-                          onClick={() => {
-                            setEditingId(msg.id);
-                            setEditContent(msg.content);
-                          }}
-                        >
-                          Edit
-                        </button>
+                        {!msg.attachment && (
+                          <button
+                            onClick={() => {
+                              setEditingId(msg.id);
+                              setEditContent(msg.content);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button onClick={() => handleDelete(msg.id)}>Delete</button>
                       </>
                     )}
@@ -268,6 +312,7 @@ export default function GroupChatPage() {
       )}
 
       <form onSubmit={handleSend} className="message-form">
+        <AttachmentPicker disabled={sendingAttachment} onSelect={handleAttachmentSelected} />
         <input
           ref={inputRef}
           type="text"
@@ -276,7 +321,18 @@ export default function GroupChatPage() {
           placeholder="Message the group..."
           className="message-input"
         />
-        <button type="submit" className="send-button">Send</button>
+        <VoiceNoteButton
+          disabled={sendingAttachment}
+          onSend={(file) => handleAttachmentSelected(file, "Voice note")}
+          onError={setError}
+        />
+        <button type="submit" className="send-button" disabled={sendingAttachment}>
+          <span className="send-button-text">{sendingAttachment ? "Sending…" : "Send"}</span>
+          <svg className="send-button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m22 2-7 20-4-9-9-4Z" />
+            <path d="M22 2 11 13" />
+          </svg>
+        </button>
       </form>
     </div>
   );

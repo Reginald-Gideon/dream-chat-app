@@ -19,6 +19,8 @@ The app is designed to feel like a premium social hub where conversations move n
 ### Messaging experience
 - Private one-on-one conversations
 - Real-time sending and receiving of messages
+- Photo, video, and document attachments in direct and group chats (up to 10 MB each)
+- Audio attachments and microphone-recorded voice notes in direct and group chats
 - Clean chat interface built for easy reading
 
 ### Social features

@@ -49,6 +49,9 @@ export default function CallOverlay() {
   const [camOn, setCamOn] = useState(true);
   const [minimized, setMinimized] = useState(false); // true = small bar at the top
   const [elapsed, setElapsed] = useState(0); // seconds since the call connected
+  const [pipPos, setPipPos] = useState(null); // where the floating window was dragged to
+  const pipRef = useRef(null); // the floating window element
+  const dragRef = useRef(null); // info about a drag in progress
 
   // Refs hold values that must not trigger a re-render and must never be "stale"
   // inside socket listeners (which are created once).
@@ -89,6 +92,7 @@ export default function CallOverlay() {
     setMicOn(true);
     setCamOn(true);
     setMinimized(false);
+    setPipPos(null);
     updateStatus("idle");
     if (message) {
       setNotice(message);
@@ -333,12 +337,55 @@ export default function CallOverlay() {
     }
     window.addEventListener("start-call", handleStartCall);
 
+    // The "Return to call" button in the chat asks us to leave minimized mode.
+    function handleExpand() {
+      setMinimized(false);
+    }
+    window.addEventListener("expand-call", handleExpand);
+
     return () => {
       window.removeEventListener("start-call", handleStartCall);
+      window.removeEventListener("expand-call", handleExpand);
       actions.current.cleanup();
       socket.disconnect();
     };
   }, [token]);
+
+  // ---------- floating window: drag it, or tap it to go back to full size ----------
+
+  function onPipPointerDown(e) {
+    if (e.target.closest("button")) return; // the mic / end buttons do their own thing
+    const rect = pipRef.current.getBoundingClientRect();
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: rect.left,
+      originY: rect.top,
+      moved: false,
+    };
+    // Capture keeps sending us pointer events even if the finger/mouse leaves the window.
+    pipRef.current.setPointerCapture(e.pointerId);
+  }
+
+  function onPipPointerMove(e) {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    if (!d.moved && Math.hypot(dx, dy) < 6) return; // tiny wiggles still count as a tap
+    d.moved = true;
+    const rect = pipRef.current.getBoundingClientRect();
+    // keep the window fully on screen
+    const x = Math.min(Math.max(8, d.originX + dx), window.innerWidth - rect.width - 8);
+    const y = Math.min(Math.max(8, d.originY + dy), window.innerHeight - rect.height - 8);
+    setPipPos({ x, y });
+  }
+
+  function onPipPointerUp() {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (d && !d.moved) setMinimized(false); // a tap (no dragging) = back to full size
+  }
 
   // ---------- what's on screen ----------
 
@@ -367,7 +414,19 @@ export default function CallOverlay() {
   }
 
   return (
-    <div className={`call-screen${minimized ? " call-minimized" : ""}`}>
+    <div
+      ref={pipRef}
+      className={`call-screen${minimized ? " call-minimized" : ""}`}
+      style={minimized && pipPos ? { left: pipPos.x, top: pipPos.y, right: "auto", bottom: "auto" } : undefined}
+      onPointerDown={minimized ? onPipPointerDown : undefined}
+      onPointerMove={minimized ? onPipPointerMove : undefined}
+      onPointerUp={minimized ? onPipPointerUp : undefined}
+      onPointerCancel={minimized ? () => { dragRef.current = null; } : undefined}
+      onKeyDown={minimized ? (e) => { if (e.key === "Enter") setMinimized(false); } : undefined}
+      role={minimized ? "button" : undefined}
+      tabIndex={minimized ? 0 : undefined}
+      aria-label={minimized ? "Return to the call" : undefined}
+    >
       <video
         id="call-remote-video"
         className="call-remote"
@@ -447,49 +506,41 @@ export default function CallOverlay() {
         </button>
       </div>
 
-      {/* Minimized: a small bar at the top. Click the middle to go back to the call. */}
+      {/* Minimized = floating window. Name + time on top, mic + end at the bottom.
+          Drag the window to move it. Tap it anywhere else to go back to full size. */}
       {minimized && (
-        <div className="call-bar">
-          <button
-            type="button"
-            className={`call-bar-icon${micOn ? "" : " call-bar-icon-off"}`}
-            onClick={toggleMic}
-            aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" />
-              {!micOn && <line x1="3" y1="3" x2="21" y2="21" />}
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            className="call-bar-main"
-            onClick={() => setMinimized(false)}
-            aria-label="Return to the call"
-          >
-            <span className="call-bar-wave" aria-hidden="true">
-              <i /><i /><i /><i />
+        <>
+          <div className="pip-info">
+            <strong>{peer?.username}</strong>
+            <span>
+              {status === "connected"
+                ? formatDuration(elapsed)
+                : status === "calling" ? "Calling…" : "Connecting…"}
             </span>
-            <span className="call-bar-text">
-              <strong>{peer?.username}</strong>
-              <span>
-                {status === "connected"
-                  ? `Video call · ${formatDuration(elapsed)}`
-                  : status === "calling" ? "Calling…" : "Connecting…"}
-              </span>
-            </span>
-          </button>
+          </div>
 
-          <button type="button" className="call-bar-end" onClick={hangUp} aria-label="End call">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
-              <line x1="6" y1="6" x2="18" y2="18" />
-              <line x1="18" y1="6" x2="6" y2="18" />
-            </svg>
-          </button>
-        </div>
+          <div className="pip-actions">
+            <button
+              type="button"
+              className={`pip-btn${micOn ? "" : " pip-btn-off"}`}
+              onClick={toggleMic}
+              aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                {!micOn && <line x1="3" y1="3" x2="21" y2="21" />}
+              </svg>
+            </button>
+            <button type="button" className="pip-btn pip-btn-end" onClick={hangUp} aria-label="End call">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                <line x1="6" y1="6" x2="18" y2="18" />
+                <line x1="18" y1="6" x2="6" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

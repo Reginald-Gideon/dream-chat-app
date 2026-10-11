@@ -10,7 +10,81 @@ const authMiddleware = require('./authMiddleware');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+
+function parseAttachment(value) {
+  if (!value || typeof value !== 'object' || typeof value.data !== 'string') {
+    throw new Error('Invalid attachment.');
+  }
+
+  const dataUrl = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/.exec(value.data);
+  if (!dataUrl) throw new Error('Invalid attachment data.');
+
+  const buffer = Buffer.from(dataUrl[2], 'base64');
+  if (buffer.toString('base64') !== dataUrl[2]) throw new Error('Invalid attachment data.');
+  if (buffer.length > MAX_ATTACHMENT_SIZE) throw new Error('Attachments must be 10 MB or smaller.');
+
+  const fileName = String(value.file_name || 'attachment')
+    .replace(/[\\/\u0000-\u001f\u007f]/g, '_')
+    .trim()
+    .slice(0, 180) || 'attachment';
+  const mimeType = /^[\w.+-]+\/[\w.+-]+$/.test(dataUrl[1])
+    ? dataUrl[1].toLowerCase()
+    : 'application/octet-stream';
+
+  return { fileName, mimeType, buffer };
+}
+
+async function saveAttachment(messageId, attachment, db = pool) {
+  if (!attachment) return null;
+  const result = await db.query(
+    `INSERT INTO message_attachments (message_id, file_name, mime_type, file_size, data)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING file_name, mime_type, file_size`,
+    [messageId, attachment.fileName, attachment.mimeType, attachment.buffer.length, attachment.buffer]
+  );
+  const saved = result.rows[0];
+  return {
+    file_name: saved.file_name,
+    mime_type: saved.mime_type,
+    file_size: saved.file_size,
+  };
+}
+
+async function insertMessage(query, values, attachment) {
+  if (!attachment) {
+    return { result: await pool.query(query, values), savedAttachment: null };
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(query, values);
+    const savedAttachment = await saveAttachment(result.rows[0].id, attachment, client);
+    await client.query('COMMIT');
+    return { result, savedAttachment };
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Message attachment rollback error:', rollbackError);
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+function getAttachmentMetadata(row) {
+  if (!row.attachment_name) return null;
+  return {
+    file_name: row.attachment_name,
+    mime_type: row.attachment_mime_type,
+    file_size: row.attachment_file_size,
+  };
+}
 
 function orderUserIds(idA, idB) {
   return idA < idB ? [idA, idB] : [idB, idA];
@@ -494,12 +568,33 @@ app.get('/api/friends/requests', authMiddleware, async (req, res) => {
 app.post('/api/conversations/:conversationId/messages', authMiddleware, async (req, res) => {
   const { conversationId } = req.params;
   const { content, replyToId } = req.body;
-  if (!content || !content.trim()) {
+  let messageContent = content;
+  let attachment = null;
+  try {
+    if (req.body.attachment !== undefined) attachment = parseAttachment(req.body.attachment);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+  if ((!content || !content.trim()) && !attachment) {
     return res.status(400).json({ message: 'Message cannot be empty.' });
+  }
+  if (attachment && (!messageContent || !messageContent.trim())) {
+    messageContent = `📎 ${attachment.fileName}`;
   }
 
   try {
-    const result = await pool.query(
+    if (attachment) {
+      const membership = await pool.query(
+        `SELECT 1 FROM conversations
+         WHERE id = $1 AND (user_one_id = $2 OR user_two_id = $2)`,
+        [conversationId, req.userId]
+      );
+      if (membership.rows.length === 0) {
+        return res.status(403).json({ message: 'You are not a member of this conversation.' });
+      }
+    }
+
+    const { result, savedAttachment } = await insertMessage(
       `WITH inserted AS (
          INSERT INTO messages (content, user_id, conversation_id, reply_to_id)
          VALUES ($1, $2, $3, $4)
@@ -509,12 +604,14 @@ app.post('/api/conversations/:conversationId/messages', authMiddleware, async (r
        FROM inserted
        LEFT JOIN messages r ON inserted.reply_to_id = r.id
        LEFT JOIN users ru ON r.user_id = ru.id`,
-      [content, req.userId, conversationId, replyToId || null]
+      [messageContent, req.userId, conversationId, replyToId || null],
+      attachment
     );
 
     const userResult = await pool.query('SELECT username, avatar FROM users WHERE id = $1', [req.userId]);
     const fullMessage = {
       ...result.rows[0],
+      attachment: savedAttachment,
       username: userResult.rows[0].username,
       avatar: userResult.rows[0].avatar,
       user_id: req.userId,
@@ -551,18 +648,62 @@ app.get('/api/conversations/:conversationId/messages', authMiddleware, async (re
          u.username,
          u.avatar AS user_avatar,     
          r.content AS reply_content,
-         ru.username AS reply_username
+         ru.username AS reply_username,
+         a.file_name AS attachment_name,
+         a.mime_type AS attachment_mime_type,
+         a.file_size AS attachment_file_size
        FROM messages m
        JOIN users u ON m.user_id = u.id
        LEFT JOIN messages r ON m.reply_to_id = r.id
        LEFT JOIN users ru ON r.user_id = ru.id
+       LEFT JOIN message_attachments a ON a.message_id = m.id
        WHERE m.conversation_id = $1
        ORDER BY m.created_at ASC`,
       [conversationId]
     );
-    res.json(result.rows);
+    res.json(result.rows.map((row) => ({ ...row, attachment: getAttachmentMetadata(row) })));
   } catch (err) {
     console.error('Get messages error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.get('/api/messages/:messageId/attachment', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT a.file_name, a.mime_type, a.file_size, a.data
+       FROM message_attachments a
+       JOIN messages m ON m.id = a.message_id
+       WHERE m.id = $1
+         AND (
+           (m.conversation_id IS NOT NULL AND EXISTS (
+             SELECT 1 FROM conversations c
+             WHERE c.id = m.conversation_id
+               AND (c.user_one_id = $2 OR c.user_two_id = $2)
+           ))
+           OR (m.group_id IS NOT NULL AND EXISTS (
+             SELECT 1 FROM group_members gm
+             WHERE gm.group_id = m.group_id AND gm.user_id = $2
+           ))
+         )`,
+      [req.params.messageId, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Attachment not found.' });
+    }
+
+    const attachment = result.rows[0];
+    const fallbackName = attachment.file_name.replace(/[^\x20-\x7E]|["\\]/g, '_');
+    res.set({
+      'Content-Type': attachment.mime_type,
+      'Content-Length': attachment.file_size,
+      'Content-Disposition': `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(attachment.file_name)}`,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'private, no-store',
+    });
+    res.send(attachment.data);
+  } catch (err) {
+    console.error('Get message attachment error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
@@ -739,8 +880,18 @@ app.get('/api/groups', authMiddleware, async (req, res) => {
 app.post('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
   const { groupId } = req.params;
   const { content } = req.body;
-  if (!content || !content.trim()) {
+  let messageContent = content;
+  let attachment = null;
+  try {
+    if (req.body.attachment !== undefined) attachment = parseAttachment(req.body.attachment);
+  } catch (err) {
+    return res.status(400).json({ message: err.message });
+  }
+  if ((!content || !content.trim()) && !attachment) {
     return res.status(400).json({ message: 'Message cannot be empty.' });
+  }
+  if (attachment && (!messageContent || !messageContent.trim())) {
+    messageContent = `📎 ${attachment.fileName}`;
   }
 
   try {
@@ -753,16 +904,18 @@ app.post('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'You are not a member of this group.' });
     }
 
-    const result = await pool.query(
+    const { result, savedAttachment } = await insertMessage(
       `INSERT INTO messages (content, user_id, group_id)
        VALUES ($1, $2, $3)
        RETURNING id, content, created_at`,
-      [content, req.userId, groupId]
+      [messageContent, req.userId, groupId],
+      attachment
     );
 
     const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [req.userId]);
     const fullMessage = {
       ...result.rows[0],
+      attachment: savedAttachment,
       username: userResult.rows[0].username,
       user_id: req.userId,
       groupId: Number(groupId),
@@ -802,16 +955,20 @@ app.get('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
          m.id, m.content, m.created_at, m.edited_at, m.user_id, m.reply_to_id,
          u.username,
          r.content AS reply_content,
-         ru.username AS reply_username
+         ru.username AS reply_username,
+         a.file_name AS attachment_name,
+         a.mime_type AS attachment_mime_type,
+         a.file_size AS attachment_file_size
        FROM messages m
        JOIN users u ON m.user_id = u.id
        LEFT JOIN messages r ON m.reply_to_id = r.id
        LEFT JOIN users ru ON r.user_id = ru.id
+       LEFT JOIN message_attachments a ON a.message_id = m.id
        WHERE m.group_id = $1
        ORDER BY m.created_at ASC`,
       [groupId]
     );
-    res.json(result.rows);
+    res.json(result.rows.map((row) => ({ ...row, attachment: getAttachmentMetadata(row) })));
   } catch (err) {
     console.error('Get group messages error:', err);
     res.status(500).json({ message: 'Internal server error.' });
@@ -1529,6 +1686,24 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
   });
 });
 
-server.listen(3001, () => {
-  console.log('Server is running on port 3001');
-});
+async function startServer() {
+  try {
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS message_attachments (
+         message_id BIGINT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
+         file_name TEXT NOT NULL,
+         mime_type TEXT NOT NULL,
+         file_size INTEGER NOT NULL,
+         data BYTEA NOT NULL
+       )`
+    );
+    server.listen(3001, () => {
+      console.log('Server is running on port 3001');
+    });
+  } catch (err) {
+    console.error('Failed to initialize message attachments:', err);
+    process.exitCode = 1;
+  }
+}
+
+startServer();

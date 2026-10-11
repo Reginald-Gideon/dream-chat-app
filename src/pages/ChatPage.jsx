@@ -3,7 +3,13 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import "../css/Chatpage.css";
 import Avatar from "../components/Avatar";
+import AttachmentPicker from "../components/AttachmentPicker";
+import MessageAttachment from "../components/MessageAttachment";
+import VoiceNoteButton from "../components/VoiceNoteButton";
 import UserAvatarMenu from "../components/UserAvatarMenu";
+import { MAX_ATTACHMENT_SIZE, readFileAsDataUrl } from "../attachmentUtils";
+const API_URL = "https://dream-chat-app-1.onrender.com";
+
 // Call log messages are saved by the server as plain text, e.g. "Video call · 02:35".
 // This turns that text into a title + detail line for the little call card.
 function parseCallLog(content, isMine) {
@@ -36,6 +42,7 @@ export default function ChatPage() {
   const [conversationSearch, setConversationSearch] = useState("");
   const [activeListTab, setActiveListTab] = useState("friends");
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [sendingAttachment, setSendingAttachment] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState("");
@@ -272,6 +279,40 @@ const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
     }
     clearTimeout(typingTimeoutRef.current);
 socketRef.current?.emit("stopTyping", { conversationId: Number(conversationId) });
+  }
+
+  async function handleAttachmentSelected(file, attachmentLabel) {
+    if (!conversationId || !file) return;
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setError("Attachments must be 10 MB or smaller.");
+      return;
+    }
+
+    setError("");
+    setSendingAttachment(true);
+    try {
+      const data = await readFileAsDataUrl(file);
+      const response = await fetch(`${API_URL}/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content: newMessage.trim() || attachmentLabel || `📎 ${file.name}`,
+          replyToId: replyingTo ? replyingTo.id : null,
+          attachment: { file_name: file.name, mime_type: file.type || "application/octet-stream", data },
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Failed to send attachment.");
+      setNewMessage("");
+      setReplyingTo(null);
+    } catch (uploadError) {
+      setError(uploadError.message || "Failed to send attachment.");
+    } finally {
+      setSendingAttachment(false);
+    }
   }
 
   async function handleEdit(messageId) {
@@ -645,6 +686,7 @@ useEffect(() => {
                     ) : msg.content}
                     {msg.edited_at && <span className="message-edited-tag"> (edited)</span>}
                   </span>
+                  <MessageAttachment attachment={msg.attachment} messageId={msg.id} token={token} />
                   <span className="message-time">
                     {formatTime(msg.created_at)}
                     {isMine && (
@@ -657,14 +699,16 @@ useEffect(() => {
                     <button onClick={() => startReply(msg)}>Reply</button>
                     {isMine && (
                       <>
-                        <button
-                          onClick={() => {
-                            setEditingId(msg.id);
-                            setEditContent(msg.content);
-                          }}
-                        >
-                          Edit
-                        </button>
+                        {!msg.attachment && (
+                          <button
+                            onClick={() => {
+                              setEditingId(msg.id);
+                              setEditContent(msg.content);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button onClick={() => handleDelete(msg.id)}>Delete</button>
                       </>
                     )}
@@ -694,6 +738,7 @@ useEffect(() => {
   <div className="typing-indicator">{otherPerson} is typing...</div>
 )}
       {conversationId && <form onSubmit={handleSend} className="message-form">
+        <AttachmentPicker disabled={sendingAttachment} onSelect={handleAttachmentSelected} />
         <input
           ref={inputRef}
           type="text"
@@ -702,7 +747,18 @@ useEffect(() => {
           placeholder="Type a message..."
           className="message-input"
         />
-        <button type="submit" className="send-button">Send</button>
+        <VoiceNoteButton
+          disabled={sendingAttachment}
+          onSend={(file) => handleAttachmentSelected(file, "Voice note")}
+          onError={setError}
+        />
+        <button type="submit" className="send-button" disabled={sendingAttachment}>
+          <span className="send-button-text">{sendingAttachment ? "Sending…" : "Send"}</span>
+          <svg className="send-button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m22 2-7 20-4-9-9-4Z" />
+            <path d="M22 2 11 13" />
+          </svg>
+        </button>
       </form>}
       </section>
     </div>
