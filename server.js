@@ -1322,6 +1322,59 @@ function clearCall(userId) {
   return st.peerId;
 }
 
+// Seconds -> "02:35" (or "1:02:35" for long calls)
+function formatDuration(totalSeconds) {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(seconds).padStart(2, '0');
+  return hours ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+// Save a "call log" message in the chat so both people see what happened.
+// outcome: 'completed' (with seconds), 'declined', or 'missed'
+async function logCall(callerId, calleeId, outcome, seconds = 0) {
+  try {
+    const [userOneId, userTwoId] = orderUserIds(Number(callerId), Number(calleeId));
+    const convo = await pool.query(
+      'SELECT id FROM conversations WHERE user_one_id = $1 AND user_two_id = $2',
+      [userOneId, userTwoId]
+    );
+    if (convo.rows.length === 0) return;
+    const conversationId = convo.rows[0].id;
+
+    let content = 'Missed video call';
+    if (outcome === 'completed') content = `Video call · ${formatDuration(seconds)}`;
+    if (outcome === 'declined') content = 'Video call declined';
+
+    // A missed call stays "unread" for the person who missed it.
+    // Calls that were answered or declined were already seen by both people.
+    const alreadySeen = outcome !== 'missed';
+    const inserted = await pool.query(
+      `INSERT INTO messages (content, user_id, conversation_id, read_at)
+       VALUES ($1, $2, $3, CASE WHEN $4::boolean THEN NOW() ELSE NULL END)
+       RETURNING id, content, created_at, read_at, reply_to_id`,
+      [content, callerId, conversationId, alreadySeen]
+    );
+    const caller = await pool.query('SELECT username, avatar FROM users WHERE id = $1', [callerId]);
+
+    io.to(`conversation:${conversationId}`).emit('newMessage', {
+      ...inserted.rows[0],
+      username: caller.rows[0].username,
+      avatar: caller.rows[0].avatar,
+      user_id: callerId,
+      conversationId: Number(conversationId),
+    });
+    // refresh both people's chat lists and unread badges
+    io.to(`user:${callerId}`).emit('unreadMessagesChanged');
+    io.to(`user:${calleeId}`).emit('unreadMessagesChanged');
+  } catch (err) {
+    console.error('logCall error:', err);
+  }
+}
+
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) {
@@ -1357,8 +1410,12 @@ socket.join(`user:${userId}`);
     // If the tab that was IN a call closes, tell the other person.
     const st = callState.get(userId);
     if (st && st.socketId === socket.id) {
+      const callerId = st.callerId;
+      const calleeId = callerId === userId ? st.peerId : userId;
       const peerId = clearCall(userId);
       io.to(`user:${peerId}`).emit('call:ended', { fromUserId: userId });
+      if (st.acceptedAt) logCall(callerId, calleeId, 'completed', (Date.now() - st.acceptedAt) / 1000);
+      else logCall(callerId, calleeId, 'missed');
     }
     const current = onlineUsers.get(userId) || 1;
     if (current <= 1) {
@@ -1432,6 +1489,9 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
     const st = callState.get(userId);
     if (!st || st.callerId !== toUserId) return; // only the person being called can accept
     st.socketId = socket.id;
+    st.acceptedAt = Date.now(); // the call clock starts now (both people's entries)
+    const callerEntry = callState.get(toUserId);
+    if (callerEntry) callerEntry.acceptedAt = st.acceptedAt;
     socket.to(`user:${userId}`).emit('call:handledElsewhere'); // stop ringing in my other tabs
     io.to(`user:${toUserId}`).emit('call:accepted', { fromUserId: userId });
   });
@@ -1444,6 +1504,7 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
     clearCall(userId);
     socket.to(`user:${userId}`).emit('call:handledElsewhere');
     io.to(`user:${toUserId}`).emit('call:rejected', { fromUserId: userId });
+    logCall(st.callerId, userId, 'declined');
   });
 
   // Pass WebRTC "introduction" data (offer / answer / ICE candidates) to the other person
@@ -1459,8 +1520,12 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
     toUserId = Number(toUserId);
     const st = callState.get(userId);
     if (!st || st.peerId !== toUserId) return;
+    const callerId = st.callerId;
+    const calleeId = callerId === userId ? st.peerId : userId;
     clearCall(userId);
     io.to(`user:${toUserId}`).emit('call:ended', { fromUserId: userId });
+    if (st.acceptedAt) logCall(callerId, calleeId, 'completed', (Date.now() - st.acceptedAt) / 1000);
+    else logCall(callerId, calleeId, 'missed'); // caller gave up before anyone answered
   });
 });
 

@@ -17,6 +17,17 @@ if (process.env.REACT_APP_TURN_URL) {
   });
 }
 
+// Turn a number of seconds into "02:35" (or "1:02:35" for calls over an hour).
+function formatDuration(totalSeconds) {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  return hours ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 /*
   CallOverlay lives inside Layout, so it is mounted on EVERY page.
   That is what lets an incoming call ring no matter where you are in the app.
@@ -36,6 +47,8 @@ export default function CallOverlay() {
   const [notice, setNotice] = useState(""); // short message like "No answer."
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
+  const [minimized, setMinimized] = useState(false); // true = small bar at the top
+  const [elapsed, setElapsed] = useState(0); // seconds since the call connected
 
   // Refs hold values that must not trigger a re-render and must never be "stale"
   // inside socket listeners (which are created once).
@@ -75,6 +88,7 @@ export default function CallOverlay() {
     setPeer(null);
     setMicOn(true);
     setCamOn(true);
+    setMinimized(false);
     updateStatus("idle");
     if (message) {
       setNotice(message);
@@ -84,7 +98,12 @@ export default function CallOverlay() {
 
   // Ask the browser for the camera + microphone (it shows a permission popup).
   async function getLocalMedia() {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      // These ask the browser to remove echo (your speaker sound coming back
+      // into your mic), background noise, and uneven volume.
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
     localStreamRef.current = stream;
     return stream;
   }
@@ -143,7 +162,6 @@ export default function CallOverlay() {
       return;
     }
 
-    console.log("[call] sending invite to", target);
     socketRef.current.emit("call:invite", { toUserId: target.id });
 
     // Give up after 30 seconds of ringing.
@@ -281,17 +299,23 @@ export default function CallOverlay() {
     onEnded, onUnavailable, onBusy, onHandledElsewhere, cleanup,
   };
 
+  // Call timer: starts counting the moment the video connects.
+  useEffect(() => {
+    if (status !== "connected") {
+      setElapsed(0);
+      return undefined;
+    }
+    const startedAt = Date.now();
+    const id = setInterval(() => {
+      setElapsed((Date.now() - startedAt) / 1000);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [status]);
+
   useEffect(() => {
     if (!token) return;
     const socket = io(API, { auth: { token } });
     socketRef.current = socket;
-
-    // --- debug logging (safe to delete later) ---
-    socket.on("connect", () => console.log("[call] socket connected", socket.id));
-    socket.on("connect_error", (e) => console.log("[call] socket error:", e.message));
-    socket.onAny((event, ...args) => {
-      if (event.startsWith("call:")) console.log("[call] received", event, args);
-    });
 
     socket.on("call:incoming", (d) => actions.current.onIncoming(d));
     socket.on("call:accepted", (d) => actions.current.onAccepted(d));
@@ -343,7 +367,7 @@ export default function CallOverlay() {
   }
 
   return (
-    <div className="call-screen">
+    <div className={`call-screen${minimized ? " call-minimized" : ""}`}>
       <video
         id="call-remote-video"
         className="call-remote"
@@ -370,11 +394,36 @@ export default function CallOverlay() {
         playsInline
         muted
         ref={(el) => {
-          if (el && localStreamRef.current && el.srcObject !== localStreamRef.current) {
+          if (!el) return;
+          // Set the DOM property directly. It guarantees you never hear your own voice
+          // played back from your own preview.
+          el.muted = true;
+          if (localStreamRef.current && el.srcObject !== localStreamRef.current) {
             el.srcObject = localStreamRef.current;
           }
         }}
       />
+
+      {/* Top strip: minimize button, and the name + timer once connected */}
+      <div className="call-topbar">
+        <button
+          type="button"
+          className="call-minimize"
+          onClick={() => setMinimized(true)}
+          aria-label="Minimize call"
+          title="Minimize"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        {status === "connected" && (
+          <div className="call-topinfo">
+            <strong>{peer?.username}</strong>
+            <span className="call-timer">{formatDuration(elapsed)}</span>
+          </div>
+        )}
+      </div>
 
       <div className="call-controls">
         <button
@@ -397,6 +446,51 @@ export default function CallOverlay() {
           {status === "calling" ? "Cancel" : "End call"}
         </button>
       </div>
+
+      {/* Minimized: a small bar at the top. Click the middle to go back to the call. */}
+      {minimized && (
+        <div className="call-bar">
+          <button
+            type="button"
+            className={`call-bar-icon${micOn ? "" : " call-bar-icon-off"}`}
+            onClick={toggleMic}
+            aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              {!micOn && <line x1="3" y1="3" x2="21" y2="21" />}
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className="call-bar-main"
+            onClick={() => setMinimized(false)}
+            aria-label="Return to the call"
+          >
+            <span className="call-bar-wave" aria-hidden="true">
+              <i /><i /><i /><i />
+            </span>
+            <span className="call-bar-text">
+              <strong>{peer?.username}</strong>
+              <span>
+                {status === "connected"
+                  ? `Video call · ${formatDuration(elapsed)}`
+                  : status === "calling" ? "Calling…" : "Connecting…"}
+              </span>
+            </span>
+          </button>
+
+          <button type="button" className="call-bar-end" onClick={hangUp} aria-label="End call">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -191,3 +191,258 @@
     padding: 12px 16px;
   }
 }
+
+/* ---- Top strip inside the full-screen call: minimize + name + timer ---- */
+.call-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  padding: 14px 14px 28px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+  color: #fff;
+}
+
+.call-minimize {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.call-topinfo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.call-topinfo strong {
+  font-size: 15px;
+}
+
+.call-timer {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums; /* digits stay the same width so the timer doesn't jiggle */
+  opacity: 0.9;
+}
+
+/* ---- Minimized: the whole call turns into a small bar at the top ---- */
+.call-screen.call-minimized {
+  inset: auto;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100vw - 24px));
+  height: 60px;
+  border-radius: 999px;
+  background: var(--surface-1, #151c25);
+  border: 1px solid var(--border-subtle, #293340);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+}
+
+/* The remote video keeps playing (that's the sound!) but is invisible. */
+.call-minimized .call-remote {
+  inset: auto;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.call-minimized .call-waiting,
+.call-minimized .call-local,
+.call-minimized .call-controls,
+.call-minimized .call-topbar {
+  display: none;
+}
+
+.call-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0 10px;
+}
+
+.call-bar-icon,
+.call-bar-end {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.call-bar-icon {
+  background: var(--surface-3, #232e3b);
+  color: var(--ink, #f2f5f9);
+}
+
+.call-bar-icon-off {
+  background: #fff;
+  color: #111;
+}
+
+.call-bar-end {
+  background: rgba(217, 72, 91, 0.18);
+  color: #ff6b81;
+}
+
+.call-bar-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  color: var(--ink, #f2f5f9);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.call-bar-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.call-bar-text strong {
+  font-size: 15px;
+  color: #ff7a45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.call-bar-text span {
+  font-size: 12px;
+  color: var(--gray-neutral, #9aa7b8);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Little animated "sound bars", like in the reference */
+.call-bar-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+}
+
+.call-bar-wave i {
+  display: block;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: #ff7a45;
+  animation: call-wave 1s ease-in-out infinite;
+}
+
+.call-bar-wave i:nth-child(2) { animation-delay: 0.15s; }
+.call-bar-wave i:nth-child(3) { animation-delay: 0.3s; }
+.call-bar-wave i:nth-child(4) { animation-delay: 0.45s; }
+
+@keyframes call-wave {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+/* ---- Call log card inside the chat ("Video call · 02:35") ---- */
+.call-log-row {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.call-log-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 380px;
+  padding: 10px 14px;
+  background: var(--surface-2, #1b242f);
+  border: 1px solid var(--border-subtle, #293340);
+  border-radius: 16px;
+  color: var(--ink, #f2f5f9);
+}
+
+.call-log-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(49, 180, 135, 0.18);
+  color: var(--accent-green, #31b487);
+}
+
+.call-log-missed .call-log-icon {
+  background: rgba(232, 121, 134, 0.18);
+  color: var(--danger, #e87986);
+}
+
+.call-log-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.call-log-text strong {
+  font-size: 14px;
+}
+
+.call-log-text span {
+  font-size: 12.5px;
+  color: var(--gray-neutral, #9aa7b8);
+}
+
+.call-log-time {
+  font-size: 11px;
+  color: var(--gray-neutral, #9aa7b8);
+  align-self: flex-start;
+}
+
+.call-log-callback {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-subtle, #293340);
+  border-radius: 999px;
+  background: var(--surface-3, #232e3b);
+  color: var(--accent-cool, #75baff);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.call-log-callback:hover {
+  background: rgba(52, 127, 229, 0.2);
+}

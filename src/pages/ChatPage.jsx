@@ -4,6 +4,25 @@ import { io } from "socket.io-client";
 import "../css/Chatpage.css";
 import Avatar from "../components/Avatar";
 import UserAvatarMenu from "../components/UserAvatarMenu";
+// Call log messages are saved by the server as plain text, e.g. "Video call · 02:35".
+// This turns that text into a title + detail line for the little call card.
+function parseCallLog(content, isMine) {
+  if (typeof content !== "string") return null;
+  if (content.startsWith("Video call · ")) {
+    return {
+      detail: `${isMine ? "Outgoing" : "Incoming"} · ${content.slice("Video call · ".length)}`,
+      missed: false,
+    };
+  }
+  if (content === "Missed video call") {
+    return { detail: isMine ? "No answer" : "Missed", missed: !isMine };
+  }
+  if (content === "Video call declined") {
+    return { detail: isMine ? "Declined" : "You declined", missed: false };
+  }
+  return null;
+}
+
 function formatTime(timestamp) {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -544,6 +563,42 @@ useEffect(() => {
           const statusReplyText = statusReplyLines && statusReplySeparator >= 0
             ? statusReplyLines.slice(statusReplySeparator + 1).join("\n")
             : "";
+
+          const callLog = parseCallLog(msg.content, isMine);
+          if (callLog) {
+            return (
+              <div key={msg.id} className="call-log-row">
+                <div className={`call-log-card${callLog.missed ? " call-log-missed" : ""}`}>
+                  <span className="call-log-icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="6" width="13" height="12" rx="2" />
+                      <path d="m22 8-5 3.5v1L22 16z" />
+                    </svg>
+                  </span>
+                  <span className="call-log-text">
+                    <strong>Video call</strong>
+                    <span>{callLog.detail}</span>
+                  </span>
+                  <span className="call-log-time">{formatTime(msg.created_at)}</span>
+                  {otherUserId && (
+                    <button
+                      type="button"
+                      className="call-log-callback"
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("start-call", {
+                            detail: { id: otherUserId, username: otherPerson, avatar: otherAvatar },
+                          })
+                        )
+                      }
+                    >
+                      Call back
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div key={msg.id} className={`message ${isMine ? "message-mine" : "message-theirs"}`}>
