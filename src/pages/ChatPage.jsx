@@ -494,6 +494,27 @@ useEffect(() => {
             <div className="chat-header-name">{otherPerson || "Morphues Web"}</div>
             <span>{otherPerson ? "Direct message" : "Your conversations, all in one place"}</span>
           </div>
+          {conversationId && otherUserId && (
+            <button
+              type="button"
+              className="chat-call-button"
+              title="Video call"
+              aria-label={`Video call ${otherPerson || "contact"}`}
+              onClick={() =>
+                // CallOverlay (mounted in Layout) listens for this browser event.
+                window.dispatchEvent(
+                  new CustomEvent("start-call", {
+                    detail: { id: otherUserId, username: otherPerson, avatar: otherAvatar },
+                  })
+                )
+              }
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2" y="6" width="13" height="12" rx="2" />
+                <path d="m22 8-5 3.5v1L22 16z" />
+              </svg>
+            </button>
+          )}
         </header>
 
       <div className="message-list">

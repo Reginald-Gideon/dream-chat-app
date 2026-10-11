@@ -175,7 +175,9 @@ export default function UserListPage() {
                     {busy ? "Opening…" : "Message"}
                   </button>
                 ) : requestSent ? (
-                  <span className="newchat-status pending"><span aria-hidden="true">✓</span> Sent</span>
+                  <button type="button" className="newchat-action sent" disabled>
+                    <span aria-hidden="true">✓</span> Request sent
+                  </button>
                 ) : (
                   <button className="newchat-action add" onClick={() => sendRequest(u.id)} disabled={busy}>
                     {busy ? "Sending…" : "Add friend"}

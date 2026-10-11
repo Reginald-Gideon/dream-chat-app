@@ -271,7 +271,20 @@ export default function ProfilePage() {
                   aria-label={uploading ? "Uploading profile photo" : "Change profile photo"}
                   title={uploading ? "Uploading..." : "Change profile photo"}
                 >
-                  {uploading ? "…" : "+"}
+                  {uploading ? "…" : (
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M14 4h-4L8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
+                      <circle cx="12" cy="13" r="3" />
+                    </svg>
+                  )}
                 </button>
               )}
               <input

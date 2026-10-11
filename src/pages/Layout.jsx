@@ -3,20 +3,21 @@ import { useCallback, useEffect, useState } from "react";
 import "../css/Layout.css";
 import Avatar from "../components/Avatar";
 import { getSavedTheme } from "../theme";
+import { io } from "socket.io-client";
+import CallOverlay from '../components/CallOverlay.jsx';
 const ChatIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
   </svg>
 );
 
-// const AddUserIcon = () => (
-//   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-//     <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-//     <circle cx="8.5" cy="7" r="4" />
-//     <line x1="20" y1="8" x2="20" y2="14" />
-//     <line x1="23" y1="11" x2="17" y2="11" />
-//   </svg>
-// );
+const AddUserIcon = () => (
+   <svg className="sidebar-sub-link-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="10" cy="7" r="4" />
+                    <path d="M19 8v6M22 11h-6" />
+                  </svg>
+);
 
 const BellIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -63,6 +64,21 @@ const FeedIcon = () => (
     <path d="M9 21v-7h6v7" />
   </svg>
 );
+const CameraIcon = () => (
+<svg
+  width="20"
+  height="20"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+>
+  <path d="M14 4h-4l-2 3H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
+  <circle cx="12" cy="13" r="3" />
+</svg>
+);
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,6 +97,7 @@ export default function Layout() {
     if (path === "/inbox") return "Messages";
     if (path === "/new") return "New chat";
     if (path === "/chat") return "Chats";
+    if(path ==='/camera') return "Camera";
     return "";
   })();
   const isChatLayout = location.pathname === "/chat"
@@ -123,6 +140,17 @@ export default function Layout() {
     return () => clearInterval(intervalId);
   }, [location.pathname, refreshUnreadCounts]);
 
+  // Live badges: the server rings this "doorbell" whenever counts change,
+  // so we reload them instantly instead of waiting for the 20s timer.
+  useEffect(() => {
+    if (!token) return undefined;
+    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+    socket.on("unreadMessagesChanged", refreshUnreadCounts);
+    socket.on("newNotification", refreshUnreadCounts);
+    socket.on("notificationsChanged", refreshUnreadCounts);
+    return () => socket.disconnect();
+  }, [token, refreshUnreadCounts]);
+
   function handleLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -131,15 +159,21 @@ export default function Layout() {
 
   const navItems = [
     { to: "/feed", label: "Feed", icon: <FeedIcon /> },
-    { to: "/chat", label: "Messages", icon: <ChatIcon />, unreadKey: "messages" },
+    { to: "/chat", label: "Messages", icon: <ChatIcon />, unreadKey: "messages", hasSubnav: true },
+   { to: "/new", label: "New Chat", icon: <AddUserIcon />, unreadKey: "messages", hasSubnav: true },
+    { to: "/camera", label: "Camera", icon: <CameraIcon />},
     { to: "/notifications", label: "Notifications", icon: <BellIcon />, unreadKey: "notifications" },
     { to: "/settings", label: "Settings", icon: <SettingsIcon /> },
+   
   ];
 
   const mobileNavItems = [
     navItems[0],
+    navItems[3],
     navItems[1],
-    { to: "/profile", label: "Profile", icon: <Avatar src={user?.avatar} name={user?.username} className="tabbar-profile-avatar" /> },
+    // navItems[3],
+    // navItems[2],
+    // { to: "/profile", label: "Profile", icon: <Avatar src={user?.avatar} name={user?.username} className="tabbar-profile-avatar" /> },
   ];
 
   function renderBadge(count, className) {
@@ -149,6 +183,7 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
+      <CallOverlay />
       <aside className="app-sidebar">
         <div className="sidebar-brand">
           <span className="sidebar-brand-name" title="Morphues" aria-label="Morphues">M</span>
@@ -156,18 +191,32 @@ export default function Layout() {
 
         <nav className="sidebar-nav">
           {navItems.map((item) => (
-  
-            <NavLink
-              key={item.to}
-              to={item.to}
-              title={item.label}
-              aria-label={item.label}
-              className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-              {item.unreadKey && renderBadge(unreadCounts[item.unreadKey], "nav-badge")}
-            </NavLink>
+            <div className="sidebar-nav-item" key={item.to}>
+              <NavLink
+                to={item.to}
+                title={item.label}
+                aria-label={item.label}
+                className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+                {item.unreadKey && renderBadge(unreadCounts[item.unreadKey], "nav-badge")}
+              </NavLink>
+              {/* {item.hasSubnav && (
+                <NavLink
+                  to="/new"
+                  className={({ isActive }) => (isActive ? "sidebar-sub-link active" : "sidebar-sub-link")}
+                  aria-label="New chat"
+                  title="New chat"
+                >
+                  <svg className="sidebar-sub-link-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="10" cy="7" r="4" />
+                    <path d="M19 8v6M22 11h-6" />
+                  </svg>
+                </NavLink>
+              )} */}
+            </div>
           ))}
         </nav>
 
@@ -195,6 +244,7 @@ export default function Layout() {
             <Link to="/profile" className="mobile-app-header-profile" aria-label="Open profile">
               <Avatar src={user?.avatar} name={user?.username} className="mobile-app-header-avatar" />
             </Link>
+           
           </header>
         )}
         <Outlet context={{ refreshUnreadCounts, handleLogout }} />

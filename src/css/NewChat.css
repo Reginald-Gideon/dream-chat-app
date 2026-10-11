@@ -279,6 +279,13 @@
   background: linear-gradient(135deg, #528cf5, #6345c7);
 }
 
+.newchat-action.sent {
+  color: var(--theme-muted, var(--gray-neutral));
+  background: var(--theme-surface-raised, rgba(128, 128, 128, 0.12));
+  border-color: var(--theme-border, var(--border-subtle));
+  cursor: default;
+}
+
 .newchat-action:disabled {
   opacity: 0.65;
   cursor: wait;

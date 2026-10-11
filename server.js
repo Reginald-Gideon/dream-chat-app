@@ -1308,6 +1308,20 @@ const io = new Server(server, {
 
 const onlineUsers = new Map();
 
+// --- VIDEO CALL BOOKKEEPING ---
+// userId -> { peerId, callerId, socketId } while a call is ringing or connected.
+// Both people in a call get an entry, so we can tell "busy" and block fake events.
+const callState = new Map();
+
+// Remove both sides of a call. Returns the other person's id (or null).
+function clearCall(userId) {
+  const st = callState.get(userId);
+  if (!st) return null;
+  callState.delete(userId);
+  callState.delete(st.peerId);
+  return st.peerId;
+}
+
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) {
@@ -1340,6 +1354,12 @@ io.on('connection', (socket) => {
   });
 socket.join(`user:${userId}`);
   socket.on('disconnect', () => {
+    // If the tab that was IN a call closes, tell the other person.
+    const st = callState.get(userId);
+    if (st && st.socketId === socket.id) {
+      const peerId = clearCall(userId);
+      io.to(`user:${peerId}`).emit('call:ended', { fromUserId: userId });
+    }
     const current = onlineUsers.get(userId) || 1;
     if (current <= 1) {
       onlineUsers.delete(userId);
@@ -1360,6 +1380,83 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
   const room = conversationId ? `conversation:${conversationId}` : `group:${groupId}`;
   socket.to(room).emit('userStoppedTyping', { userId: socket.userId, conversationId, groupId });
 });
+
+  // ===== VIDEO CALL SIGNALLING =====
+  // The server never touches video. It only passes small "introduction" messages
+  // between two browsers so they can connect directly to each other.
+
+  // Caller rings someone
+  socket.on('call:invite', async ({ toUserId }) => {
+    toUserId = Number(toUserId);
+    if (!toUserId || toUserId === userId) return;
+    try {
+      const friendship = await pool.query(
+        `SELECT 1 FROM friendships
+         WHERE ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
+           AND status = 'accepted'`,
+        [userId, toUserId]
+      );
+      if (friendship.rows.length === 0) {
+        return socket.emit('call:unavailable', { reason: 'not-friends' });
+      }
+      if (!onlineUsers.has(toUserId)) {
+        return socket.emit('call:unavailable', { reason: 'offline' });
+      }
+      if (callState.has(userId) || callState.has(toUserId)) {
+        return socket.emit('call:busy');
+      }
+      // (no await between the check above and these two lines, so two people
+      //  calling each other at the same instant can't both get through)
+      callState.set(userId, { peerId: toUserId, callerId: userId, socketId: socket.id });
+      callState.set(toUserId, { peerId: userId, callerId: userId, socketId: null });
+
+      const me = await pool.query('SELECT username, avatar FROM users WHERE id = $1', [userId]);
+      io.to(`user:${toUserId}`).emit('call:incoming', {
+        fromUserId: userId,
+        fromUsername: me.rows[0].username,
+        fromAvatar: me.rows[0].avatar,
+      });
+    } catch (err) {
+      console.error('call:invite error:', err);
+    }
+  });
+
+  // Callee picks up
+  socket.on('call:accept', ({ toUserId }) => {
+    toUserId = Number(toUserId);
+    const st = callState.get(userId);
+    if (!st || st.callerId !== toUserId) return; // only the person being called can accept
+    st.socketId = socket.id;
+    socket.to(`user:${userId}`).emit('call:handledElsewhere'); // stop ringing in my other tabs
+    io.to(`user:${toUserId}`).emit('call:accepted', { fromUserId: userId });
+  });
+
+  // Callee declines
+  socket.on('call:reject', ({ toUserId }) => {
+    toUserId = Number(toUserId);
+    const st = callState.get(userId);
+    if (!st || st.callerId !== toUserId) return;
+    clearCall(userId);
+    socket.to(`user:${userId}`).emit('call:handledElsewhere');
+    io.to(`user:${toUserId}`).emit('call:rejected', { fromUserId: userId });
+  });
+
+  // Pass WebRTC "introduction" data (offer / answer / ICE candidates) to the other person
+  socket.on('call:signal', ({ toUserId, data }) => {
+    toUserId = Number(toUserId);
+    const st = callState.get(userId);
+    if (!st || st.peerId !== toUserId) return;
+    io.to(`user:${toUserId}`).emit('call:signal', { fromUserId: userId, data });
+  });
+
+  // Either person hangs up (or the caller gives up ringing)
+  socket.on('call:end', ({ toUserId }) => {
+    toUserId = Number(toUserId);
+    const st = callState.get(userId);
+    if (!st || st.peerId !== toUserId) return;
+    clearCall(userId);
+    io.to(`user:${toUserId}`).emit('call:ended', { fromUserId: userId });
+  });
 });
 
 server.listen(3001, () => {
